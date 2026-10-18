@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 import plotly.graph_objects as go
+from scipy.spatial import cKDTree
+
 # --- COMPATIBILITY PATCH FOR DEPRECATED NUMPY TYPES ---
 legacy_aliases = [
     ('long', int), ('ulong', int), ('longlong', int), ('ulonglong', int),
@@ -114,7 +116,6 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None):
         selected.append(best_idx)
         remaining.remove(best_idx)
         
-        # Rank-1 update (using .item() to fix deprecation warning)
         w = U_r[best_idx, :].reshape(-1, 1)
         Dw = DtD_inv @ w
         DtD_inv -= (Dw @ Dw.T) / (1.0 + (w.T @ Dw).item())
@@ -126,26 +127,15 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None):
 
 
 def reconstruct(U_r, X_mean, selected_indices, y_measured):
-    """
-    selected_indices: global indices of selected sensors (p,)
-    y_measured: Cp values at sensor locations (p,)
-    Returns full field reconstruction across ALL mesh nodes
-    """
-    D = U_r[selected_indices, :]   # (p, r)
+    D = U_r[selected_indices, :]
     y = y_measured - X_mean[selected_indices, 0]
-    
     z, _, _, _ = np.linalg.lstsq(D, y, rcond=None)
-    
     Cp_reconstructed = U_r @ z + X_mean[:, 0]
     return Cp_reconstructed
 
+
 def plot_interactive_plotly(df, scalar_data, title="Interactive CpS", 
                             sensors=None, output_html="interactive_diffuser.html", max_points=50000):
-    """
-    Exports a 60fps GPU-accelerated 3D plot to an HTML file.
-    Open the generated HTML in Chrome, Edge, or VS Code to rotate, zoom, and inspect points.
-    """
-    # Subsample if dataset is large to maintain smooth rotation
     if len(df) > max_points:
         sample_indices = np.random.choice(len(df), size=max_points, replace=False)
         df_plot = df.iloc[sample_indices]
@@ -156,78 +146,98 @@ def plot_interactive_plotly(df, scalar_data, title="Interactive CpS",
 
     fig = go.Figure()
 
-    # 1. Surface Pressure Point Cloud
     fig.add_trace(go.Scatter3d(
-        x=df_plot['x'],
-        y=df_plot['y'],
-        z=df_plot['z'],
+        x=df_plot['x'], y=df_plot['y'], z=df_plot['z'],
         mode='markers',
-        marker=dict(
-            size=2.5,
-            color=scalar_plot,
-            colorscale='Jet',
-            colorbar=dict(title="CpS"),
-            opacity=0.8
-        ),
+        marker=dict(size=2.5, color=scalar_plot, colorscale='Jet', colorbar=dict(title="CpS"), opacity=0.8),
         text=[f"X: {x:.3f}<br>Y: {y:.3f}<br>Z: {z:.3f}<br>CpS: {cp:.4f}" 
               for x, y, z, cp in zip(df_plot['x'], df_plot['y'], df_plot['z'], scalar_plot)],
-        hoverinfo='text',
-        name='Side Diffuser Surface'
+        hoverinfo='text', name='Side Diffuser Surface'
     ))
 
-    # 2. Overlay Sensor Locations (if provided)
     if sensors is not None:
         fig.add_trace(go.Scatter3d(
-            x=sensors['x'],
-            y=sensors['y'],
-            z=sensors['z'],
+            x=sensors['x'], y=sensors['y'], z=sensors['z'],
             mode='markers+text',
-            marker=dict(
-                size=8,
-                color='red',
-                symbol='diamond',
-                line=dict(color='black', width=1)
-            ),
+            marker=dict(size=8, color='red', symbol='diamond', line=dict(color='black', width=1)),
             text=[f"Sensor {i+1}" for i in range(len(sensors))],
             textposition="top center",
-            hoverinfo='text+x+y+z',
-            name='Optimal Sensors'
+            hoverinfo='text+x+y+z', name='Optimal Sensors'
         ))
 
-    # Equal 1:1 aspect ratio matching physical car dimensions
     fig.update_layout(
         title=title,
-        scene=dict(
-            xaxis_title='X',
-            yaxis_title='Y',
-            zaxis_title='Z',
-            aspectmode='data'
-        ),
+        scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Z', aspectmode='data'),
         margin=dict(r=10, l=10, b=10, t=40)
     )
 
     fig.write_html(output_html)
     print(f"Saved interactive 3D model to {output_html}")
-# ==========================================
-# MAIN EXECUTION PIPELINE (FIXED)
-# ==========================================
-from scipy.spatial import cKDTree
 
-# 1. LOAD COMBINED CLUSTER ENSEMBLE DATASET
-ensemble_path = "side_diffuser_ensemble.npz"
+
+def plot_interactive_bottom_plotly(df, scalar_data, title="Interactive Bottom View", 
+                                   sensors=None, output_html="bottom_interactive_3d.html", max_points=50000):
+    if len(df) > max_points:
+        sample_indices = np.random.choice(len(df), size=max_points, replace=False)
+        df_plot = df.iloc[sample_indices]
+        scalar_plot = scalar_data[sample_indices]
+    else:
+        df_plot = df
+        scalar_plot = scalar_data
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter3d(
+        x=df_plot['x'], y=df_plot['y'], z=df_plot['z'],
+        mode='markers',
+        marker=dict(size=2.5, color=scalar_plot, colorscale='Jet', colorbar=dict(title="CpS"), opacity=0.8),
+        text=[f"X: {x:.3f}<br>Y: {y:.3f}<br>Z: {z:.3f}<br>CpS: {cp:.4f}" 
+              for x, y, z, cp in zip(df_plot['x'], df_plot['y'], df_plot['z'], scalar_plot)],
+        hoverinfo='text', name='Side Diffuser Surface'
+    ))
+
+    if sensors is not None:
+        fig.add_trace(go.Scatter3d(
+            x=sensors['x'], y=sensors['y'], z=sensors['z'],
+            mode='markers+text',
+            marker=dict(size=8, color='red', symbol='diamond', line=dict(color='black', width=1)),
+            text=[f"Sensor {i+1}" for i in range(len(sensors))],
+            textposition="top center",
+            hoverinfo='text+x+y+z', name='Optimal Sensors'
+        ))
+
+    fig.update_layout(
+        title=title,
+        scene=dict(
+            xaxis_title='X', yaxis_title='Y', zaxis_title='Z',
+            aspectmode='data',
+            camera=dict(
+                eye=dict(x=1.2, y=-1.5, z=-1.0)  # Positions camera underneath the floor looking up
+            )
+        ),
+        margin=dict(r=10, l=10, b=10, t=40)
+    )
+
+    fig.write_html(output_html)
+    print(f"Saved interactive bottom-view 3D model to {output_html}")
+
+
+# ==========================================
+# MAIN EXECUTION PIPELINE
+# ==========================================
+
+ensemble_path = "side_diffuser_ensemble_highres.npz"
 if not os.path.exists(ensemble_path):
     raise FileNotFoundError(f"Could not find {ensemble_path}.")
 
 data = np.load(ensemble_path)
-Cp_ensemble = data["Cp_matrix"]  # Shape: (702040, 122)
+Cp_ensemble = data["Cp_matrix"]
 x, y, z = data["x"], data["y"], data["z"]
 coords = np.column_stack([x, y, z])
 Cp_mean = Cp_ensemble.mean(axis=1, keepdims=True)
 
-# 2. DEDUPLICATE MESH NODES (KEEP UNIQUE 3D POSITIONS ONLY)
-# Round coordinates to 3 decimal places (0.001 mm / unit precision)
 _, unique_indices = np.unique(np.round(coords, decimals=3), axis=0, return_index=True)
-unique_indices.sort()  # Maintain spatial order
+unique_indices.sort()
 
 coords_unique = coords[unique_indices]
 Cp_ensemble_unique = Cp_ensemble[unique_indices, :]
@@ -240,11 +250,9 @@ df = pd.DataFrame({
     "CpS": Cp_mean_unique.flatten()
 })
 
-# 3. MAP EXCLUSION MASK TO UNIQUE MESH POINTS
 if os.path.exists("exclusion_mask.npz"):
     mask_data = np.load("exclusion_mask.npz")
     raw_mask = mask_data["excluded"]
-    # If mask length doesn't match full dataset, project using KDTree nearest neighbor
     if len(raw_mask) != len(df):
         print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
         mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]]) if "x" in mask_data else coords[:len(raw_mask)]
@@ -256,12 +264,32 @@ if os.path.exists("exclusion_mask.npz"):
 else:
     excluded_mask = np.zeros(len(df), dtype=bool)
 
-candidate_indices = np.where(~excluded_mask)[0]
+# After building coords_unique and excluded_mask, add a one-side restriction.
+# Only one physical side diffuser will be manufactured, so sensors should
+# only ever be selected from one side's candidate points (left, y <= 0).
+one_side_mask = coords_unique[:, 1] <= 0
+
+# Exclude a buffer zone around the mirror symmetry seam (y=0), since
+# interpolation/stitching artifacts there can create a false "high
+# information" region that the greedy algorithm wrongly piles sensors into
+seam_buffer = 0.01  # metres — adjust if sensors still cluster near y=0
+near_seam_mask = np.abs(coords_unique[:, 1]) < seam_buffer
+
+combined_mask = one_side_mask & (~excluded_mask) & (~near_seam_mask)
+candidate_indices = np.where(combined_mask)[0]
+
+print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
+print(f"Seam buffer excluded: {near_seam_mask.sum()} / {len(df)} points within {seam_buffer}m of y=0")
+print(f"Valid blue candidate points (final): {len(candidate_indices)} / {len(df)}")
+
+print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
+print(f"Valid blue candidate points (one side, excluding edges): {len(candidate_indices)} / {len(df)}")
+
+
 print(f"Total unique mesh points: {len(df)}")
 print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
 print(f"Valid blue candidate points: {len(candidate_indices)} / {len(df)}")
 
-# 4. SVD ON DE-DUPLICATED CFD ENSEMBLE
 X_tilde = Cp_ensemble_unique - Cp_mean_unique
 U, sigma, Vt = np.linalg.svd(X_tilde, full_matrices=False)
 
@@ -272,11 +300,10 @@ print(f"\nSVD Modes retained for {variance_lim*100:.0f}% variance: {r}")
 
 U_r = U[:, :r]
 
-# 5. GREEDY SENSOR PLACEMENT ON UNIQUE BLUE CANDIDATES
 U_r_candidates = U_r[candidate_indices, :]
 coords_candidates = coords_unique[candidate_indices]
 
-n_sensors = 20
+n_sensors = 40
 selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates)
 
 selected_global = candidate_indices[selected_local]
@@ -285,7 +312,6 @@ sensors = df.iloc[selected_global]
 print("\nSelected sensor coordinates (Unique):")
 print(sensors[['x', 'y', 'z']])
 
-# 6. RECONSTRUCTION EVALUATION ON TEST CASE (CFD Case 0)
 test_case_idx = 0
 y_test_case = Cp_ensemble_unique[selected_global, test_case_idx]
 Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
@@ -295,7 +321,7 @@ Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
 error_rms = np.sqrt(np.mean((Cp_recon - Cp_true_case)**2))
 print(f"\nRMS Reconstruction Error on Case {test_case_idx}: {error_rms:.6f}")
 
-# 7. GENERATE VISUALIZATIONS
+# 7. GENERATE STANDARD TOP/ISOMETRIC VISUALIZATIONS
 plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
 plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", output_path="reconstructed.png", cmap_var="CpS", sensors=sensors, elev=-90, azim=0)
 plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", elev=-90, azim=0)
@@ -306,4 +332,36 @@ plot_interactive_plotly(
     title=f"Reconstructed CpS (Case {test_case_idx}) with 20 Unique Sensors", 
     sensors=sensors, 
     output_html="reconstructed_3d.html"
+)
+sensor_y = sensors["y"].to_numpy()
+print("Sensor y-values (sorted):", np.sort(sensor_y))
+# 8. GENERATE BOTTOM/UNDERSIDE VISUALIZATIONS
+plot_data(df, Cp_true_case, f"True CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_original.png", cmap_var="CpS", elev=25, azim=-60)
+plot_data(df, Cp_recon, f"Reconstructed CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_reconstructed.png", cmap_var="CpS", sensors=sensors, elev=25, azim=-60)
+plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error - Bottom Underside", output_path="bottom_error.png", cmap_var="CpT", elev=25, azim=-60)
+
+# 8. GENERATE TRUE BOTTOM-VIEW VISUALIZATIONS (Named by Camera Angles: elev90_azim0)
+plot_data(
+    df, Cp_true_case, 
+    f"True CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
+    output_path="elev90_azim0_original.png", 
+    cmap_var="CpS", 
+    elev=90, azim=0
+)
+
+plot_data(
+    df, Cp_recon, 
+    f"Reconstructed CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
+    output_path="elev90_azim0_reconstructed.png", 
+    cmap_var="CpS", 
+    sensors=sensors, 
+    elev=90, azim=0
+)
+
+plot_data(
+    df, np.abs(Cp_recon - Cp_true_case), 
+    "Absolute Error - Bottom View [elev=90, azim=0]", 
+    output_path="elev90_azim0_error.png", 
+    cmap_var="CpT", 
+    elev=90, azim=0
 )
