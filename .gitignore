@@ -1,0 +1,12 @@
+*.npz
+*.csv
+!sweeps/*.csv
+*.x_b
+*.prt
+*.png
+*.html
+CAD/
+oldCad/
+data/
+.venv/
+__pycache__/
