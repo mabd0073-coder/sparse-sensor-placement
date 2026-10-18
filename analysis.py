@@ -1,347 +1,309 @@
-"""
-SVD-Based Sparse Sensor Placement and Flow Field Reconstruction Framework.
-
-This module performs Proper Orthogonal Decomposition (POD / SVD) on an ensemble
-of 3D aerodynamic pressure fields, applies a greedy sensor selection algorithm
-with spatial separation constraints, and reconstructs high-fidelity pressure fields
-from sparse surface measurements.
-"""
-
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 import plotly.graph_objects as go
-from scipy.spatial import cKDTree
+# --- COMPATIBILITY PATCH FOR DEPRECATED NUMPY TYPES ---
+legacy_aliases = [
+    ('long', int), ('ulong', int), ('longlong', int), ('ulonglong', int),
+    ('uintc', int), ('intc', int), ('int', int), ('float', float),
+    ('complex', complex), ('object', object)
+]
+for alias, target in legacy_aliases:
+    if not hasattr(np, alias):
+        setattr(np, alias, target)
+# ------------------------------------------------------
 
 
-def greedy_sensor_placement(
-    U_r: np.ndarray, 
-    n_sensors: int, 
-    coords: np.ndarray | None = None, 
-    min_distance: float = 0.03
-) -> np.ndarray:
-    """
-    Select optimal sensor locations using a greedy matrix volume maximization algorithm.
-
-    Iteratively selects sensor locations that maximize projection residual norm
-    from the truncated spatial modes $U_r$, while enforcing a physical minimum distance
-    between selected sensors.
-
-    Parameters
-    ----------
-    U_r : np.ndarray
-        Truncated left singular vector matrix (spatial modes) of shape (N_points, r).
-    n_sensors : int
-        Number of sensors to select.
-    coords : np.ndarray, optional
-        3D spatial coordinates of candidate points of shape (N_points, 3) in meters.
-    min_distance : float, optional
-        Minimum physical separation required between selected sensors in meters (default 0.03 m).
-
-    Returns
-    -------
-    np.ndarray
-        1D array containing indices of the selected sensor positions.
-    """
-    n_points, r = U_r.shape
-    selected_indices = []
-
-    # First sensor selection: location with maximum mode amplitude norm
-    norms = np.linalg.norm(U_r, axis=1)
-    first_idx = int(np.argmax(norms))
-    selected_indices.append(first_idx)
-
-    for _ in range(1, n_sensors):
-        U_sub = U_r[selected_indices, :]
-
-        if U_sub.shape[0] < r:
-            P = U_sub.T @ np.linalg.pinv(U_sub @ U_sub.T) @ U_sub
-            residuals = np.linalg.norm(U_r - U_r @ P, axis=1)
-        else:
-            residuals = np.linalg.norm(U_r, axis=1)
-
-        # Apply minimum spatial separation constraint
-        if coords is not None and len(selected_indices) > 0:
-            tree = cKDTree(coords[selected_indices])
-            dists, _ = tree.query(coords)
-            residuals[dists < min_distance] = -1.0
-
-        next_idx = int(np.argmax(residuals))
-        selected_indices.append(next_idx)
-
-    return np.array(selected_indices, dtype=int)
+def get_colourmap(var):
+    if var in ('CpT', 'yplus', 'ReasonForTermination'):
+        output = [-1,0,0,0,-0.7,0.67,0.03,0.4,-0.65,0.73,0.035,0.45,-0.6,0.75,0.04,0.49,-0.55,0.74,0.05,0.52,-0.5,0.7,0.07,0.55,-0.25,0.29,0.3,0.78,-0.19999999999999996,0.2723,0.3697,0.8262,-0.15000000000000002,0.2765,0.4814,0.9506,-0.099999999999999978,0.2586,0.5796,0.9988,-0.050000000000000044,0.1933,0.6881,0.9619,0,0.127,0.7804,0.8759,0.050000000000000044,0.0929,0.8588,0.7724,0.10000000000000009,0.1353,0.922,0.6656,0.14999999999999991,0.248,0.9642,0.543,0.19999999999999996,0.4123,0.9927,0.3983,0.25,0.5603,0.9987,0.2862,0.30000000000000004,0.6746,0.9825,0.2196,0.35000000000000009,0.7856,0.9358,0.2034,0.39999999999999991,0.8753,0.8727,0.2156,0.44999999999999996,0.9449,0.7963,0.228,0.5,0.9878,0.7033,0.2136,0.55,0.9964,0.5985,0.1738,0.60000000000000009,0.9811,0.481,0.1233,0.64999999999999991,0.9408,0.3557,0.0703,0.7,0.8869,0.2615,0.0375,0.75,0.8161,0.1846,0.0181,0.8,0.7169,0.1127,0.0063,0.85000000000000009,0.7,0.15,0.05,0.89999999999999991,0.72,0.4,0.4,0.95,0.75,0.75,0.75,1,0.75,0.75,0.75]
+    elif var == 'CpS':
+        output = [-4,0,0,0,-3.25,0.67,0.03,0.4,-3.125,0.73,0.035,0.45,-3,0.75,0.04,0.49,-2.875,0.74,0.05,0.52,-2.75,0.7,0.07,0.55,-1.5,0.29,0.3,0.78,-1.25,0.2723,0.3697,0.8262,-1,0.2765,0.4814,0.9506,-0.75,0.2586,0.5796,0.9988,-0.5,0.1933,0.6881,0.9619,-0.42859999999999987,0.127,0.7804,0.8759,-0.3571,0.0929,0.8588,0.7724,-0.2856999999999994,0.1353,0.922,0.6656,-0.21419999999999995,0.248,0.9642,0.543,-0.14290000000000003,0.4123,0.9927,0.3983,-0.07140000000000013,0.5603,0.875,0.55,0,0.75,0.75,0.75,0.071399999999999686,0.7856,0.75,0.4,0.14290000000000003,0.8753,0.75,0.3,0.21419999999999995,0.9449,0.75,0.228,0.28570000000000029,0.9878,0.7033,0.2136,0.3571,0.9964,0.5985,0.1738,0.42860000000000031,0.9811,0.481,0.1233,0.5,0.9408,0.3557,0.0703,0.57139999999999969,0.8869,0.2615,0.0375,0.6429,0.8161,0.1846,0.0181,0.71429999999999971,0.7169,0.1127,0.0063,1,0,0,0]
+    elif var in ('nV','heliQ','ndVx','ndVy','ndVz','JA'):
+        output = [-1,0.75,0.04,0.49,-0.975,0.74,0.05,0.52,-0.95,0.7,0.07,0.55,-0.7,0.29,0.3,0.78,-0.65,0.2723,0.3697,0.8262,-0.6,0.2765,0.4814,0.9506,-0.55,0.2586,0.5796,0.9988,-0.5,0.1933,0.6881,0.9619,-0.42859999999999987,0.127,0.7804,0.8759,-0.3571,0.0929,0.8588,0.7724,-0.2856999999999994,0.1353,0.922,0.6656,-0.21419999999999995,0.248,0.9642,0.543,-0.14290000000000003,0.4123,0.9927,0.3983,-0.07140000000000013,0.5603,0.875,0.55,0,0.75,0.75,0.75,0.071399999999999686,0.7856,0.75,0.4,0.14290000000000003,0.8753,0.75,0.3,0.21419999999999995,0.9449,0.75,0.228,0.28570000000000029,0.9878,0.7033,0.2136,0.3571,0.9964,0.5985,0.1738,0.42860000000000031,0.9811,0.481,0.1233,0.5,0.9408,0.3557,0.0703,0.57139999999999969,0.8869,0.2615,0.0375,0.6429,0.8161,0.1846,0.0181,0.71429999999999971,0.7169,0.1127,0.0063,1,0,0,0]
+    elif var == 'Cf':
+        output = [0,0,1,1,0.002,0,0,1,0.004,0,0,0.5,0.006,1,0,0,0.008,1,1,0,0.01,1,1,1]
+    elif var == 'Cfx':
+        output = [-0.01,1,0.25,0.25,-9.9999999999995925E-6,1,0.25,0.25,0,0,1,1,0.01,0,1,1]
+    else:
+        raise ValueError(f"Unknown colourmap variable: {var}")
+    return output
 
 
-def reconstruct(
-    U_r: np.ndarray, 
-    Cp_mean: np.ndarray, 
-    sensor_indices: np.ndarray, 
-    y_sensors: np.ndarray
-) -> np.ndarray:
-    """
-    Reconstruct full 3D surface pressure field from sparse sensor measurements.
-
-    Solves the linear system $y' = U_{s} a$ for modal coefficients $a$ using least squares:
-    $$a = U_s^\dagger (y_{\text{sensors}} - \bar{y}_{\text{sensors}})$$
-    and computes full field estimate: $\hat{y} = \bar{y} + U_r a$.
-
-    Parameters
-    ----------
-    U_r : np.ndarray
-        Truncated spatial modes matrix of shape (N_points, r).
-    Cp_mean : np.ndarray
-        Ensemble mean field array of shape (N_points, 1) or (N_points,).
-    sensor_indices : np.ndarray
-        Global indices corresponding to selected sensor locations.
-    y_sensors : np.ndarray
-        Measured pressure coefficient values at sensor locations.
-
-    Returns
-    -------
-    np.ndarray
-        Reconstructed full surface pressure field array of shape (N_points,).
-    """
-    U_s = U_r[sensor_indices, :]
-    y_prime = y_sensors - Cp_mean[sensor_indices].flatten()
-
-    # Least-squares modal expansion coefficient solving
-    a, _, _, _ = np.linalg.lstsq(U_s, y_prime, rcond=None)
-
-    # Full field projection
-    Cp_recon = Cp_mean.flatten() + (U_r @ a)
-    return Cp_recon
+def make_matplotlib_colormap(var):
+    output = get_colourmap(var)
+    if len(output) % 4 != 0:
+        raise ValueError("Colourmap data must be a multiple of 4")
+    stops = [(output[i], output[i+1], output[i+2], output[i+3]) for i in range(0, len(output), 4)]
+    positions, colors = zip(*[(pos, (r, g, b)) for pos, r, g, b in stops])
+    vmin, vmax = positions[0], positions[-1]
+    normalized = [(pos - vmin) / (vmax - vmin) for pos in positions]
+    return LinearSegmentedColormap.from_list(var, list(zip(normalized, colors))), Normalize(vmin=vmin, vmax=vmax)
 
 
-def plot_data(
-    df: pd.DataFrame, 
-    values: np.ndarray, 
-    title: str, 
-    output_path: str, 
-    cmap_var: str = "coolwarm", 
-    sensors: pd.DataFrame | None = None, 
-    vmin: float = -3.0, 
-    vmax: float = 1.0
-) -> None:
-    """
-    Generate and save a static 3D scatter plot of surface field data using Matplotlib.
+def load_data(path=None):
+    if path is None:
+        for candidate in ["side_diffuser_case1", "side_diffuser_case1.txt", "side_diffuser.csv"]:
+            if os.path.exists(candidate):
+                path = candidate
+                break
+        if path is None:
+            raise FileNotFoundError("Could not find suitable side diffuser input file.")
+    
+    cols = ["nodenumber", "x", "y", "z", "velocity_magnitude", "total_pressure",
+            "dynamic_pressure", "pressure", "z2", "y2", "x2"]
+    
+    sep = r'\s+' if path.endswith('.txt') or not path.endswith('.csv') else ','
+    df = pd.read_csv(path, sep=sep, header=0, names=cols, comment="#")
+    df = df.sort_values("z").reset_index(drop=True)
+    df["CpS"] = df["pressure"] / (0.5 * 1.225 * 19.44**2)
+    return df
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing 3D mesh spatial coordinates 'x', 'y', 'z'.
-    values : np.ndarray
-        Scalar array to visualize with color mapping.
-    title : str
-        Plot title text.
-    output_path : str
-        Target file path for saving the rendered image file (.png, .jpg).
-    cmap_var : str, optional
-        Matplotlib color map identifier (default is "coolwarm").
-    sensors : pd.DataFrame, optional
-        DataFrame containing selected sensor coordinates for overlay marking.
-    vmin : float, optional
-        Minimum color scale value (default -3.0).
-    vmax : float, optional
-        Maximum color scale value (default 1.0).
-    """
-    fig = plt.figure(figsize=(8, 10))
-    ax = fig.add_subplot(111, projection='3d')
 
-    sc = ax.scatter(
-        df['y'], df['x'], df['z'],
-        c=values,
-        cmap=cmap_var,
-        s=4,
-        vmin=vmin,
-        vmax=vmax,
-        alpha=0.8
-    )
+def plot_data(df, scalar_data, title, cmap_var="CpS", output_path="plot.png", 
+              elev=20, azim=-60, close=True, sensors=None):
+    cmap, norm = make_matplotlib_colormap(cmap_var)
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    
+    sc = ax.scatter(df["x"], df["y"], df["z"],
+                    c=scalar_data, cmap=cmap, norm=norm, s=16, alpha=0.6)
 
     if sensors is not None:
-        ax.scatter(
-            sensors['y'], sensors['x'], sensors['z'],
-            c='red', marker='*', s=120, label='Sensors', edgecolors='black'
-        )
-        ax.legend(loc='upper right')
+        ax.scatter(sensors["x"], sensors["y"], sensors["z"],
+                   c="red", s=100, marker="*", zorder=5, label=f"Sensors (n={len(sensors)})")
+        ax.legend()
 
-    ax.set_title(title, fontsize=14)
-    ax.set_xlabel('Y [m]')
-    ax.set_ylabel('X [m]')
-    ax.set_zlabel('Z [m]')
-
-    ax.view_init(elev=-90, azim=0)
-    fig.colorbar(sc, ax=ax, shrink=0.6, pad=0.1)
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300)
-    plt.close()
+    ax.view_init(elev=elev, azim=azim)
+    ax.set_aspect('equal')
+    ax.set_title(title)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    fig.colorbar(sc, ax=ax)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200)
     print(f"Saved plot to {output_path}")
+    if close:
+        plt.close(fig)
+    else:
+        plt.show()
 
 
-def plot_interactive_plotly(
-    df: pd.DataFrame, 
-    values: np.ndarray, 
-    title: str, 
-    sensors: pd.DataFrame | None = None, 
-    output_html: str = "reconstructed_3d.html"
-) -> None:
+def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None):
+    n_points, r = U_r.shape
+    selected = []
+    remaining = list(range(n_points))
+    
+    DtD_inv = (1/eps) * np.eye(r)
+    
+    for k in range(n_sensors): 
+        best_idx = None
+        best_gain = -np.inf
+        
+        for i in remaining:
+            w = U_r[i, :]
+            gain = 1.0 + w @ DtD_inv @ w
+            if gain > best_gain:
+                best_gain = gain
+                best_idx = i
+        
+        selected.append(best_idx)
+        remaining.remove(best_idx)
+        
+        # Rank-1 update (using .item() to fix deprecation warning)
+        w = U_r[best_idx, :].reshape(-1, 1)
+        Dw = DtD_inv @ w
+        DtD_inv -= (Dw @ Dw.T) / (1.0 + (w.T @ Dw).item())
+        
+        coord_str = f"coords {coords[best_idx]}" if coords is not None else ""
+        print(f"Sensor {k+1}: local candidate index {best_idx}, {coord_str}, gain {best_gain:.4f}")
+    
+    return selected
+
+
+def reconstruct(U_r, X_mean, selected_indices, y_measured):
     """
-    Export an interactive 3D WebGL scatter visualization using Plotly.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing 3D mesh spatial coordinates 'x', 'y', 'z'.
-    values : np.ndarray
-        Scalar array mapped to marker color values.
-    title : str
-        Plotly figure title.
-    sensors : pd.DataFrame, optional
-        DataFrame containing sensor coordinates to overlay on the geometry.
-    output_html : str, optional
-        Output HTML filename (default is "reconstructed_3d.html").
+    selected_indices: global indices of selected sensors (p,)
+    y_measured: Cp values at sensor locations (p,)
+    Returns full field reconstruction across ALL mesh nodes
     """
+    D = U_r[selected_indices, :]   # (p, r)
+    y = y_measured - X_mean[selected_indices, 0]
+    
+    z, _, _, _ = np.linalg.lstsq(D, y, rcond=None)
+    
+    Cp_reconstructed = U_r @ z + X_mean[:, 0]
+    return Cp_reconstructed
+
+def plot_interactive_plotly(df, scalar_data, title="Interactive CpS", 
+                            sensors=None, output_html="interactive_diffuser.html", max_points=50000):
+    """
+    Exports a 60fps GPU-accelerated 3D plot to an HTML file.
+    Open the generated HTML in Chrome, Edge, or VS Code to rotate, zoom, and inspect points.
+    """
+    # Subsample if dataset is large to maintain smooth rotation
+    if len(df) > max_points:
+        sample_indices = np.random.choice(len(df), size=max_points, replace=False)
+        df_plot = df.iloc[sample_indices]
+        scalar_plot = scalar_data[sample_indices]
+    else:
+        df_plot = df
+        scalar_plot = scalar_data
+
     fig = go.Figure()
 
+    # 1. Surface Pressure Point Cloud
     fig.add_trace(go.Scatter3d(
-        x=df['y'], y=df['x'], z=df['z'],
+        x=df_plot['x'],
+        y=df_plot['y'],
+        z=df_plot['z'],
         mode='markers',
         marker=dict(
-            size=3,
-            color=values,
+            size=2.5,
+            color=scalar_plot,
             colorscale='Jet',
-            cmin=-3.0,
-            cmax=1.0,
             colorbar=dict(title="CpS"),
             opacity=0.8
         ),
-        name='Surface Mesh'
+        text=[f"X: {x:.3f}<br>Y: {y:.3f}<br>Z: {z:.3f}<br>CpS: {cp:.4f}" 
+              for x, y, z, cp in zip(df_plot['x'], df_plot['y'], df_plot['z'], scalar_plot)],
+        hoverinfo='text',
+        name='Side Diffuser Surface'
     ))
 
+    # 2. Overlay Sensor Locations (if provided)
     if sensors is not None:
         fig.add_trace(go.Scatter3d(
-            x=sensors['y'], y=sensors['x'], z=sensors['z'],
-            mode='markers',
+            x=sensors['x'],
+            y=sensors['y'],
+            z=sensors['z'],
+            mode='markers+text',
             marker=dict(
                 size=8,
                 color='red',
                 symbol='diamond',
                 line=dict(color='black', width=1)
             ),
-            name='Sensors'
+            text=[f"Sensor {i+1}" for i in range(len(sensors))],
+            textposition="top center",
+            hoverinfo='text+x+y+z',
+            name='Optimal Sensors'
         ))
 
+    # Equal 1:1 aspect ratio matching physical car dimensions
     fig.update_layout(
         title=title,
         scene=dict(
-            xaxis_title='Y [m]',
-            yaxis_title='X [m]',
-            zaxis_title='Z [m]',
+            xaxis_title='X',
+            yaxis_title='Y',
+            zaxis_title='Z',
             aspectmode='data'
-        )
+        ),
+        margin=dict(r=10, l=10, b=10, t=40)
     )
+
     fig.write_html(output_html)
-    print(f"Saved interactive plot to {output_html}")
+    print(f"Saved interactive 3D model to {output_html}")
+# ==========================================
+# MAIN EXECUTION PIPELINE (FIXED)
+# ==========================================
+from scipy.spatial import cKDTree
 
+# 1. LOAD COMBINED CLUSTER ENSEMBLE DATASET
+ensemble_path = "side_diffuser_ensemble.npz"
+if not os.path.exists(ensemble_path):
+    raise FileNotFoundError(f"Could not find {ensemble_path}.")
 
-if __name__ == "__main__":
-    ENSEMBLE_PATH = "side_diffuser_ensemble_combined.npz"
-    MASK_PATH = "exclusion_mask.npz"
+data = np.load(ensemble_path)
+Cp_ensemble = data["Cp_matrix"]  # Shape: (702040, 122)
+x, y, z = data["x"], data["y"], data["z"]
+coords = np.column_stack([x, y, z])
+Cp_mean = Cp_ensemble.mean(axis=1, keepdims=True)
 
-    if not os.path.exists(ENSEMBLE_PATH):
-        raise FileNotFoundError(f"Cannot find {ENSEMBLE_PATH}. Run interpolation pipeline first.")
+# 2. DEDUPLICATE MESH NODES (KEEP UNIQUE 3D POSITIONS ONLY)
+# Round coordinates to 3 decimal places (0.001 mm / unit precision)
+_, unique_indices = np.unique(np.round(coords, decimals=3), axis=0, return_index=True)
+unique_indices.sort()  # Maintain spatial order
 
-    # 1. Load data archive
-    data = np.load(ENSEMBLE_PATH)
-    Cp_ensemble = data["Cp_matrix"]
-    x, y, z = data["x"], data["y"], data["z"]
-    coords = np.column_stack([x, y, z])
-    Cp_mean = Cp_ensemble.mean(axis=1, keepdims=True)
+coords_unique = coords[unique_indices]
+Cp_ensemble_unique = Cp_ensemble[unique_indices, :]
+Cp_mean_unique = Cp_mean[unique_indices]
 
-    # 2. Deduplicate physical mesh nodes
-    _, unique_indices = np.unique(np.round(coords, decimals=4), axis=0, return_index=True)
-    unique_indices.sort()
+df = pd.DataFrame({
+    "x": coords_unique[:, 0],
+    "y": coords_unique[:, 1],
+    "z": coords_unique[:, 2],
+    "CpS": Cp_mean_unique.flatten()
+})
 
-    coords_unique = coords[unique_indices]
-    Cp_ensemble_unique = Cp_ensemble[unique_indices, :]
-    Cp_mean_unique = Cp_mean[unique_indices]
-
-    df = pd.DataFrame({
-        "x": coords_unique[:, 0],
-        "y": coords_unique[:, 1],
-        "z": coords_unique[:, 2],
-        "CpS": Cp_mean_unique.flatten()
-    })
-
-    # 3. Apply exclusion mask
-    if os.path.exists(MASK_PATH):
-        mask_data = np.load(MASK_PATH)
-        raw_mask = mask_data["excluded"]
-
-        if len(raw_mask) != len(df):
-            mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]]) if "x" in mask_data else coords[:len(raw_mask)]
-            if np.max(np.abs(mask_coords)) > 10.0:
-                mask_coords /= 1000.0
-
-            tree = cKDTree(mask_coords)
-            _, nearest_idx = tree.query(coords_unique)
-            excluded_mask = raw_mask[nearest_idx].astype(bool)
-        else:
-            excluded_mask = raw_mask[unique_indices].astype(bool)
+# 3. MAP EXCLUSION MASK TO UNIQUE MESH POINTS
+if os.path.exists("exclusion_mask.npz"):
+    mask_data = np.load("exclusion_mask.npz")
+    raw_mask = mask_data["excluded"]
+    # If mask length doesn't match full dataset, project using KDTree nearest neighbor
+    if len(raw_mask) != len(df):
+        print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
+        mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]]) if "x" in mask_data else coords[:len(raw_mask)]
+        tree = cKDTree(mask_coords)
+        _, nearest_idx = tree.query(coords_unique)
+        excluded_mask = raw_mask[nearest_idx].astype(bool)
     else:
-        excluded_mask = np.zeros(len(df), dtype=bool)
+        excluded_mask = raw_mask[unique_indices].astype(bool)
+else:
+    excluded_mask = np.zeros(len(df), dtype=bool)
 
-    candidate_indices = np.where(~excluded_mask)[0]
+candidate_indices = np.where(~excluded_mask)[0]
+print(f"Total unique mesh points: {len(df)}")
+print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
+print(f"Valid blue candidate points: {len(candidate_indices)} / {len(df)}")
 
-    print(f"Total Unique Mesh Points: {len(df)}")
-    print(f"Candidate Points for Sensor Placement: {len(candidate_indices)}")
+# 4. SVD ON DE-DUPLICATED CFD ENSEMBLE
+X_tilde = Cp_ensemble_unique - Cp_mean_unique
+U, sigma, Vt = np.linalg.svd(X_tilde, full_matrices=False)
 
-    # 4. Perform SVD
-    X_tilde = Cp_ensemble_unique - Cp_mean_unique
-    U, sigma, Vt = np.linalg.svd(X_tilde, full_matrices=False)
+variance_lim = 0.90
+cumulative = np.cumsum(sigma**2) / np.sum(sigma**2)
+r = max(2, np.searchsorted(cumulative, variance_lim) + 1)
+print(f"\nSVD Modes retained for {variance_lim*100:.0f}% variance: {r}")
 
-    variance_target = 0.95
-    cumulative_var = np.cumsum(sigma**2) / np.sum(sigma**2)
-    r = max(2, int(np.searchsorted(cumulative_var, variance_target) + 1))
+U_r = U[:, :r]
 
-    print(f"SVD Modes selected for {variance_target*100:.0f}% variance: {r}")
-    U_r = U[:, :r]
+# 5. GREEDY SENSOR PLACEMENT ON UNIQUE BLUE CANDIDATES
+U_r_candidates = U_r[candidate_indices, :]
+coords_candidates = coords_unique[candidate_indices]
 
-    # 5. Greedy sensor selection
-    n_sensors = 20
-    selected_local = greedy_sensor_placement(
-        U_r[candidate_indices, :],
-        n_sensors=n_sensors,
-        coords=coords_unique[candidate_indices],
-        min_distance=0.03
-    )
+n_sensors = 20
+selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates)
 
-    selected_global = candidate_indices[selected_local]
-    sensors = df.iloc[selected_global]
+selected_global = candidate_indices[selected_local]
+sensors = df.iloc[selected_global]
 
-    print("\nSelected Sensor Coordinates (Meters):")
-    print(sensors[['x', 'y', 'z']])
+print("\nSelected sensor coordinates (Unique):")
+print(sensors[['x', 'y', 'z']])
 
-    # 6. Evaluate reconstruction on Case 0
-    test_case_idx = 0
-    y_test_case = Cp_ensemble_unique[selected_global, test_case_idx]
-    Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
+# 6. RECONSTRUCTION EVALUATION ON TEST CASE (CFD Case 0)
+test_case_idx = 0
+y_test_case = Cp_ensemble_unique[selected_global, test_case_idx]
+Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
 
-    Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
+Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
 
-    rms_error = float(np.sqrt(np.mean((Cp_recon - Cp_true_case)**2)))
-    print(f"\nRMS Reconstruction Error (Case {test_case_idx}): {rms_error:.6f}")
+error_rms = np.sqrt(np.mean((Cp_recon - Cp_true_case)**2))
+print(f"\nRMS Reconstruction Error on Case {test_case_idx}: {error_rms:.6f}")
 
-    # 7. Render output plots
-    plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", "original.png", cmap_var="jet", vmin=-3.0, vmax=1.0)
-    plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", "reconstructed.png", cmap_var="jet", sensors=sensors, vmin=-3.0, vmax=1.0)
-    plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Reconstruction Error", "error.png", cmap_var="hot", vmin=0.0, vmax=0.5)
+# 7. GENERATE VISUALIZATIONS
+plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
+plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", output_path="reconstructed.png", cmap_var="CpS", sensors=sensors, elev=-90, azim=0)
+plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", elev=-90, azim=0)
 
-    plot_interactive_plotly(
-        df,
-        Cp_recon,
-        title=f"Reconstructed CpS (Case {test_case_idx}) with 20 Optimal Sensors",
-        sensors=sensors,
-        output_html="reconstructed_3d.html"
-    )
+plot_interactive_plotly(
+    df, 
+    Cp_recon, 
+    title=f"Reconstructed CpS (Case {test_case_idx}) with 20 Unique Sensors", 
+    sensors=sensors, 
+    output_html="reconstructed_3d.html"
+)
