@@ -1,12 +1,19 @@
 """
 master_load_sweep_ensemble.py
 
-Loads side_diffuser.csv exports from multiple ride-height sweep directories.
+Loads side_diffuser.csv exports from multiple ride-height/attitude sweep
+directories, mirrors half-car symmetric cases, and aligns all cases onto
+one high-density reference mesh using k=4 inverse-distance-weighted (IDW)
+interpolation (NOT nearest-neighbour, which produces striped artifacts
+at mesh panel boundaries).
+
 Features:
 1. Searches all sweep directories and parses case parameters.
 2. Automatically detects and mirrors half-car (left-hand) symmetric sweeps.
 3. Automatically identifies the highest-density mesh to use as the target reference.
-4. Spatially maps lower-density meshes onto the high-density target using KDTree.
+4. Spatially maps lower-density meshes onto the high-density target using
+   k=4 IDW interpolation via cKDTree (smooth, avoids nearest-neighbour
+   snapping artifacts at curvature/panel edges).
 """
 
 from pathlib import Path
@@ -22,9 +29,19 @@ SIDE_DIFFUSER_COLS = [
     "CpS", "velocity_magnitude",
 ]
 
+# Number of nearest neighbours used for IDW interpolation when aligning
+# a case's native mesh onto the reference mesh. k=1 (nearest-neighbour)
+# causes visible striping/discontinuities at mesh panel boundaries;
+# k=4 with inverse-distance weighting gives a smooth, physically
+# reasonable interpolation instead.
+IDW_K = 4
+IDW_EPS = 1e-9
+
+
 class CfdDataError(ValueError):
     """Custom exception raised when CFD output files fail validation checks."""
     pass
+
 
 def load_side_diffuser_case(path: Path) -> pd.DataFrame:
     """Load and validate a single CFD side_diffuser.csv data file."""
@@ -35,9 +52,9 @@ def load_side_diffuser_case(path: Path) -> pd.DataFrame:
         raise CfdDataError(f"No rows parsed from {path}")
     if df[["x", "y", "z", "CpS"]].isna().any().any():
         raise CfdDataError(f"NaNs found in required columns in {path}")
-    
+
     df = df.reset_index(drop=True)
-    
+
     # Convert mm coordinates to meters if detected
     if np.max(np.abs(df["x"].values)) > 10.0:
         df["x"] /= 1000.0
@@ -46,6 +63,7 @@ def load_side_diffuser_case(path: Path) -> pd.DataFrame:
 
     return df
 
+
 def parse_case_params(folder_name: str) -> dict:
     """Extract key-value parameter pairs encoded in a case folder name."""
     params = {}
@@ -53,6 +71,7 @@ def parse_case_params(folder_name: str) -> dict:
         key, value = match.group(1), float(match.group(2))
         params[key] = value
     return params
+
 
 def prepare_full_car_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, bool]:
     """
@@ -66,7 +85,6 @@ def prepare_full_car_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, boo
     is_half_car = df["y"].min() > -0.05
 
     if is_half_car:
-        # Create right-hand mirrored coordinates (y -> -y)
         coords_rh = coords.copy()
         coords_rh[:, 1] = -coords_rh[:, 1]
 
@@ -76,13 +94,46 @@ def prepare_full_car_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, boo
 
     return coords, cp, False
 
+
+def idw_interpolate(
+    source_coords: np.ndarray,
+    source_values: np.ndarray,
+    target_coords: np.ndarray,
+    k: int = IDW_K,
+    eps: float = IDW_EPS,
+) -> np.ndarray:
+    """
+    Interpolate scalar values from a source point cloud onto a target
+    point cloud using inverse-distance weighting over each target
+    point's k nearest source neighbours.
+
+    This replaces plain nearest-neighbour matching (k=1), which causes
+    visible striping/discontinuities in the reconstructed field wherever
+    a target point's single nearest source point happens to sit across
+    a mesh panel boundary or region of high curvature.
+    """
+    tree = cKDTree(source_coords)
+    distances, indices = tree.query(target_coords, k=k)
+
+    # k=1 returns 1D arrays; normalize to 2D so weighting logic is uniform
+    if k == 1:
+        distances = distances[:, None]
+        indices = indices[:, None]
+
+    weights = 1.0 / (distances + eps)
+    neighbor_values = source_values[indices]
+    interpolated = np.sum(weights * neighbor_values, axis=1) / np.sum(weights, axis=1)
+    return interpolated
+
+
 def load_sweep_ensemble(
-    sweep_dirs: Union[Sequence[Path], Path], 
-    filename: str = "side_diffuser.csv"
+    sweep_dirs: Union[Sequence[Path], Path],
+    filename: str = "side_diffuser.csv",
 ) -> Tuple[pd.DataFrame, np.ndarray, pd.DataFrame]:
     """
     Load, mirror, align, and concatenate CFD cases.
     Automatically sets the largest spatial grid as the reference mesh.
+    Alignment uses k=4 IDW interpolation, not nearest-neighbour.
     """
     if isinstance(sweep_dirs, (Path, str)):
         sweep_dirs = [Path(sweep_dirs)]
@@ -135,23 +186,22 @@ def load_sweep_ensemble(
     if not raw_cases:
         raise CfdDataError("No valid cases were loaded.")
 
-    # 2. Select target reference mesh coordinates (Find the case with maximum node count)
+    # 2. Select target reference mesh coordinates (case with maximum node count)
     target_idx = np.argmax([p["node_count"] for p in params_rows])
     target_coords, _ = raw_cases[target_idx]
-    
+
     print(f"\nUsing case [{params_rows[target_idx]['sweep']}/{params_rows[target_idx]['folder']}] ")
     print(f"as spatial reference grid ({len(target_coords):,} target nodes).")
+    print(f"Aligning all cases using k={IDW_K} inverse-distance-weighted interpolation...")
 
-    # 3. Spatial alignment via KDTree interpolation mapping coarse cases to high-density target
+    # 3. Spatial alignment via k=4 IDW interpolation (smooth, avoids
+    #    nearest-neighbour striping artifacts at panel boundaries)
     aligned_cp_list = []
     for i, (coords, cp) in enumerate(raw_cases):
         if len(coords) == len(target_coords) and np.allclose(coords, target_coords, atol=1e-5):
             aligned_cp_list.append(cp)
         else:
-            # Create KDTree on the source (coarse) mesh, and query using the target (fine) mesh
-            tree = cKDTree(coords)
-            _, nearest_indices = tree.query(target_coords)
-            cp_aligned = cp[nearest_indices]
+            cp_aligned = idw_interpolate(coords, cp, target_coords, k=IDW_K)
             aligned_cp_list.append(cp_aligned)
 
     Cp_matrix = np.column_stack(aligned_cp_list)
@@ -166,6 +216,7 @@ def load_sweep_ensemble(
 
     return ref_df, Cp_matrix, case_params
 
+
 if __name__ == "__main__":
     SWEEP_DIRS = [
         Path("/fs04/scratch2/he41/temp_runs/26_06/50.28"),
@@ -175,7 +226,7 @@ if __name__ == "__main__":
     ref_df, Cp_matrix, case_params = load_sweep_ensemble(SWEEP_DIRS)
 
     print(f"\nEnsemble shape: {Cp_matrix.shape} (nodes x cases)")
-    
+
     np.savez_compressed(
         "side_diffuser_ensemble_highres.npz",
         Cp_matrix=Cp_matrix,
