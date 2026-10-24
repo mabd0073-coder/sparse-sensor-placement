@@ -1,0 +1,17 @@
+# AI-assisted changes log
+
+Changes made with Claude Code (Claude Opus 5.5), one line per change.
+
+- 2026-10-25 `9dc6a2c` analysis.py loads the ensemble and exclusion mask from `data/`, overridable with `SSP_DATA_DIR` and `SSP_ENSEMBLE`.
+- 2026-10-25 `229159d` Vectorised the greedy sensor placement; it picks the same sensors as the old loop (checked on real modes).
+- 2026-10-25 `fac8f4d` The exclusion mask is applied only when it can be aligned to the mesh; otherwise a warning is printed and no mask is used.
+- 2026-10-25 `d9388e2` analysis.py also reports a held-out RMS error (modes and sensors rebuilt without the test case).
+- 2026-10-25 `697fa75` Removed the unused numpy alias patch and duplicate prints; fixed the plot title's sensor count; error plots use a 0–0.5 colour range.
+- 2026-10-25 `0fc4a9f` Added `sensor_opt/core.py` with `compute_pod`, `greedy_sensor_placement`, `reconstruct` and `CfdDataError`, with NumPy-style docstrings.
+- 2026-10-25 `d921c60` analysis.py imports the core functions instead of defining them; output on the highres ensemble is identical to the previous version.
+- 2026-10-25 `a4a90c2` analysis.py runs its pipeline only under `if __name__ == "__main__":`.
+- 2026-10-25 `d6b1bf1` Added `tests/test_core.py` (10 pytest tests) and `pytest.ini`.
+- 2026-10-25 `eaa0f62` Added `docs/test_report.txt` from `pytest -v` (10 passed).
+- 2026-10-25 `8495c23` Added pdoc HTML docs in `docs/html/` and un-ignored them in `.gitignore`.
+- 2026-10-25 `e2204ef` Rewrote the README to cover purpose, install, data location, how to run and how to test.
+- 2026-10-25 Added this log.
