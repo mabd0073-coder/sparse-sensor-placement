@@ -226,7 +226,9 @@ def plot_interactive_bottom_plotly(df, scalar_data, title="Interactive Bottom Vi
 # MAIN EXECUTION PIPELINE
 # ==========================================
 
-ensemble_path = "side_diffuser_ensemble_highres.npz"
+DATA_DIR = os.environ.get("SSP_DATA_DIR", "data")
+ensemble_path = os.path.join(DATA_DIR, os.environ.get("SSP_ENSEMBLE", "side_diffuser_ensemble_highres.npz"))
+mask_path = os.path.join(DATA_DIR, "exclusion_mask.npz")
 if not os.path.exists(ensemble_path):
     raise FileNotFoundError(f"Could not find {ensemble_path}.")
 
@@ -250,8 +252,8 @@ df = pd.DataFrame({
     "CpS": Cp_mean_unique.flatten()
 })
 
-if os.path.exists("exclusion_mask.npz"):
-    mask_data = np.load("exclusion_mask.npz")
+if os.path.exists(mask_path):
+    mask_data = np.load(mask_path)
     raw_mask = mask_data["excluded"]
     if len(raw_mask) != len(df):
         print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
