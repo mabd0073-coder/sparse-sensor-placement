@@ -98,24 +98,19 @@ def plot_data(df, scalar_data, title, cmap_var="CpS", output_path="plot.png",
 def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None):
     n_points, r = U_r.shape
     selected = []
-    remaining = list(range(n_points))
-    
+    available = np.ones(n_points, dtype=bool)
+
     DtD_inv = (1/eps) * np.eye(r)
-    
-    for k in range(n_sensors): 
-        best_idx = None
-        best_gain = -np.inf
-        
-        for i in remaining:
-            w = U_r[i, :]
-            gain = 1.0 + w @ DtD_inv @ w
-            if gain > best_gain:
-                best_gain = gain
-                best_idx = i
-        
+
+    for k in range(n_sensors):
+        gains = 1.0 + ((U_r @ DtD_inv) * U_r).sum(axis=1)
+        gains[~available] = -np.inf
+        best_idx = int(np.argmax(gains))
+        best_gain = gains[best_idx]
+
         selected.append(best_idx)
-        remaining.remove(best_idx)
-        
+        available[best_idx] = False
+
         w = U_r[best_idx, :].reshape(-1, 1)
         Dw = DtD_inv @ w
         DtD_inv -= (Dw @ Dw.T) / (1.0 + (w.T @ Dw).item())
