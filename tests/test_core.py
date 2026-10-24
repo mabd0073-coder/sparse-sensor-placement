@@ -72,6 +72,36 @@ def test_vectorised_greedy_matches_original_loop():
     assert greedy_sensor_placement(U_r, n_sensors=30) == reference_greedy(U_r, n_sensors=30)
 
 
+def test_min_dist_keeps_sensors_apart():
+    rng = np.random.default_rng(3)
+    U_r = rng.standard_normal((2000, 4))
+    coords = rng.uniform(0.0, 1.0, size=(2000, 3))
+
+    selected = greedy_sensor_placement(U_r, n_sensors=20, coords=coords, min_dist=0.1)
+
+    picked = coords[selected]
+    gaps = np.linalg.norm(picked[:, None, :] - picked[None, :, :], axis=2)
+    assert len(set(selected)) == 20
+    assert gaps[np.triu_indices(20, k=1)].min() >= 0.1
+
+
+def test_min_dist_zero_reproduces_unconstrained_picks():
+    rng = np.random.default_rng(42)
+    U_r = rng.standard_normal((2000, 5))
+    coords = rng.uniform(0.0, 1.0, size=(2000, 3))
+
+    unconstrained = greedy_sensor_placement(U_r, n_sensors=30)
+
+    assert greedy_sensor_placement(U_r, n_sensors=30, coords=coords, min_dist=0.0) == unconstrained
+    assert unconstrained == reference_greedy(U_r, n_sensors=30)
+
+
+def test_min_dist_too_large_raises():
+    coords = np.array([[0.0, 0, 0], [0.01, 0, 0], [0.02, 0, 0]])
+    with pytest.raises(ValueError):
+        greedy_sensor_placement(np.eye(3), n_sensors=2, coords=coords, min_dist=1.0)
+
+
 def test_reconstruction_error_falls_with_more_sensors_under_noise():
     rng = np.random.default_rng(7)
     snapshots, base, Q = synthetic_ensemble(rng, n_points=1000, n_cases=40, rank=5)

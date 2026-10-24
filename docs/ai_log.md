@@ -15,3 +15,5 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 `8495c23` Added pdoc HTML docs in `docs/html/` and un-ignored them in `.gitignore`.
 - 2026-10-25 `e2204ef` Rewrote the README to cover purpose, install, data location, how to run and how to test.
 - 2026-10-25 Added this log.
+- 2026-10-25 Merged feat/tests-docs into feat/final-analysis (base docs/report-figures lacked sensor_opt, tests and docs).
+- 2026-10-25 `greedy_sensor_placement` takes an optional `min_dist` (metres, default 0 = unchanged picks); tests for spacing and for identical picks at 0.

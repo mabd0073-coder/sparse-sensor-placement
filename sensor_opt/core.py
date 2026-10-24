@@ -61,12 +61,14 @@ def compute_pod(snapshots, variance_target=0.90, min_modes=2):
     return U[:, :r], mean, r
 
 
-def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=False):
+def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=False, min_dist=0.0):
     """Select sensor locations by greedy D-optimal design.
 
     At each step the point whose basis row ``w`` maximises the determinant
     gain ``1 + w (D^T D + eps I)^-1 w^T`` is added, and the inverse is
-    updated with the Sherman-Morrison formula.
+    updated with the Sherman-Morrison formula. With ``min_dist > 0``, every
+    candidate closer than ``min_dist`` to a chosen sensor is removed after
+    each pick.
 
     Parameters
     ----------
@@ -77,9 +79,13 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=Fals
     eps : float, optional
         Regularisation of the initial information matrix. Default 1e-10.
     coords : ndarray, shape (n_points, 3), optional
-        Candidate coordinates, only used in progress messages.
+        Candidate coordinates in metres. Required when ``min_dist > 0``;
+        otherwise only used in progress messages.
     verbose : bool, optional
         Print each selected sensor. Default False.
+    min_dist : float, optional
+        Minimum distance between sensors in metres. Default 0 (no spacing
+        constraint; identical picks to the unconstrained algorithm).
 
     Returns
     -------
@@ -91,13 +97,19 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=Fals
     CfdDataError
         If ``U_r`` contains NaN or infinite values.
     ValueError
-        If ``n_sensors`` exceeds the number of candidate points.
+        If ``n_sensors`` exceeds the number of candidate points, if
+        ``min_dist > 0`` without ``coords``, or if the spacing constraint
+        leaves too few candidates.
     """
     U_r = np.asarray(U_r)
     _check_finite("U_r", U_r)
     n_points, r = U_r.shape
     if n_sensors > n_points:
         raise ValueError(f"Cannot place {n_sensors} sensors on {n_points} candidate points.")
+    if min_dist > 0:
+        if coords is None:
+            raise ValueError("min_dist > 0 needs coords.")
+        coords = np.asarray(coords, dtype=float)
 
     selected = []
     available = np.ones(n_points, dtype=bool)
@@ -105,6 +117,8 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=Fals
     DtD_inv = (1/eps) * np.eye(r)
 
     for k in range(n_sensors):
+        if not available.any():
+            raise ValueError(f"Only {k} sensors fit with min_dist={min_dist} m; asked for {n_sensors}.")
         gains = 1.0 + ((U_r @ DtD_inv) * U_r).sum(axis=1)
         gains[~available] = -np.inf
         best_idx = int(np.argmax(gains))
@@ -112,6 +126,8 @@ def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None, verbose=Fals
 
         selected.append(best_idx)
         available[best_idx] = False
+        if min_dist > 0:
+            available &= np.linalg.norm(coords - coords[best_idx], axis=1) >= min_dist
 
         w = U_r[best_idx, :].reshape(-1, 1)
         Dw = DtD_inv @ w
