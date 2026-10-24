@@ -6,6 +6,8 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 import plotly.graph_objects as go
 from scipy.spatial import cKDTree
 
+from sensor_opt.core import compute_pod, greedy_sensor_placement, reconstruct
+
 
 def get_colourmap(var):
     if var in ('CpT', 'yplus', 'ReasonForTermination'):
@@ -84,40 +86,6 @@ def plot_data(df, scalar_data, title, cmap_var="CpS", output_path="plot.png",
         plt.close(fig)
     else:
         plt.show()
-
-
-def greedy_sensor_placement(U_r, n_sensors, eps=1e-10, coords=None):
-    n_points, r = U_r.shape
-    selected = []
-    available = np.ones(n_points, dtype=bool)
-
-    DtD_inv = (1/eps) * np.eye(r)
-
-    for k in range(n_sensors):
-        gains = 1.0 + ((U_r @ DtD_inv) * U_r).sum(axis=1)
-        gains[~available] = -np.inf
-        best_idx = int(np.argmax(gains))
-        best_gain = gains[best_idx]
-
-        selected.append(best_idx)
-        available[best_idx] = False
-
-        w = U_r[best_idx, :].reshape(-1, 1)
-        Dw = DtD_inv @ w
-        DtD_inv -= (Dw @ Dw.T) / (1.0 + (w.T @ Dw).item())
-        
-        coord_str = f"coords {coords[best_idx]}" if coords is not None else ""
-        print(f"Sensor {k+1}: local candidate index {best_idx}, {coord_str}, gain {best_gain:.4f}")
-    
-    return selected
-
-
-def reconstruct(U_r, X_mean, selected_indices, y_measured):
-    D = U_r[selected_indices, :]
-    y = y_measured - X_mean[selected_indices, 0]
-    z, _, _, _ = np.linalg.lstsq(D, y, rcond=None)
-    Cp_reconstructed = U_r @ z + X_mean[:, 0]
-    return Cp_reconstructed
 
 
 def plot_interactive_plotly(df, scalar_data, title="Interactive CpS", 
@@ -281,21 +249,15 @@ print(f"Valid blue candidate points (final): {len(candidate_indices)} / {len(df)
 print(f"Total unique mesh points: {len(df)}")
 print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
 
-X_tilde = Cp_ensemble_unique - Cp_mean_unique
-U, sigma, Vt = np.linalg.svd(X_tilde, full_matrices=False)
-
 variance_lim = 0.90
-cumulative = np.cumsum(sigma**2) / np.sum(sigma**2)
-r = max(2, np.searchsorted(cumulative, variance_lim) + 1)
+U_r, _, r = compute_pod(Cp_ensemble_unique, variance_lim)
 print(f"\nSVD Modes retained for {variance_lim*100:.0f}% variance: {r}")
-
-U_r = U[:, :r]
 
 U_r_candidates = U_r[candidate_indices, :]
 coords_candidates = coords_unique[candidate_indices]
 
 n_sensors = 40
-selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates)
+selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates, verbose=True)
 
 selected_global = candidate_indices[selected_local]
 sensors = df.iloc[selected_global]
@@ -315,13 +277,9 @@ print(f"\nIn-sample RMS Reconstruction Error on Case {test_case_idx} (case was i
 # Held-out check: rebuild modes and sensors without the test case, then reconstruct it.
 train_cols = np.arange(Cp_ensemble_unique.shape[1]) != test_case_idx
 Cp_train = Cp_ensemble_unique[:, train_cols]
-Cp_mean_train = Cp_train.mean(axis=1, keepdims=True)
-U_train, sigma_train, _ = np.linalg.svd(Cp_train - Cp_mean_train, full_matrices=False)
-cumulative_train = np.cumsum(sigma_train**2) / np.sum(sigma_train**2)
-r_train = max(2, np.searchsorted(cumulative_train, variance_lim) + 1)
-U_r_train = U_train[:, :r_train]
+U_r_train, Cp_mean_train, r_train = compute_pod(Cp_train, variance_lim)
 print(f"\nHeld-out run: {r_train} modes from {train_cols.sum()} training cases")
-selected_train = candidate_indices[greedy_sensor_placement(U_r_train[candidate_indices, :], n_sensors)]
+selected_train = candidate_indices[greedy_sensor_placement(U_r_train[candidate_indices, :], n_sensors, verbose=True)]
 Cp_recon_heldout = reconstruct(U_r_train, Cp_mean_train, selected_train, Cp_true_case[selected_train])
 error_rms_heldout = np.sqrt(np.mean((Cp_recon_heldout - Cp_true_case)**2))
 print(f"Held-out RMS Reconstruction Error on Case {test_case_idx}: {error_rms_heldout:.6f}")
