@@ -11,3 +11,5 @@ data/
 __pycache__/
 !sweeps/new/*.csv
 !docs/html/*.html
+!results/*.csv
+!results/*.png
