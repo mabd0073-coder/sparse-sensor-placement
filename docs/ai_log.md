@@ -24,3 +24,4 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 Added experiments/rrf_validation.py (modes, training LOO, held-out test RMS and mean-field baseline for greedy, greedy+min_dist, QR, random at 10/20/24 sensors); smoke-tested on a highres split, awaiting real rrf_*.npz.
 - 2026-10-25 Ran placement_comparison.py on the highres ensemble (results/placement_comparison_highres*).
 - 2026-10-25 Profiled analysis.py with cProfile (results/profile_analysis.txt, top 25 rows) and added experiments/time_core.py; laptop timings in results/timings_laptop.txt.
+- 2026-10-25 Regenerated docs/test_report.txt (20 tests).
