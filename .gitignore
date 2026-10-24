@@ -9,3 +9,4 @@ oldCad/
 data/
 .venv/
 __pycache__/
+!docs/html/*.html
