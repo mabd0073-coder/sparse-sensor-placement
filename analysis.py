@@ -6,17 +6,6 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 import plotly.graph_objects as go
 from scipy.spatial import cKDTree
 
-# --- COMPATIBILITY PATCH FOR DEPRECATED NUMPY TYPES ---
-legacy_aliases = [
-    ('long', int), ('ulong', int), ('longlong', int), ('ulonglong', int),
-    ('uintc', int), ('intc', int), ('int', int), ('float', float),
-    ('complex', complex), ('object', object)
-]
-for alias, target in legacy_aliases:
-    if not hasattr(np, alias):
-        setattr(np, alias, target)
-# ------------------------------------------------------
-
 
 def get_colourmap(var):
     if var in ('CpT', 'yplus', 'ReasonForTermination'):
@@ -65,8 +54,10 @@ def load_data(path=None):
 
 
 def plot_data(df, scalar_data, title, cmap_var="CpS", output_path="plot.png", 
-              elev=20, azim=-60, close=True, sensors=None):
+              elev=20, azim=-60, close=True, sensors=None, clim=None):
     cmap, norm = make_matplotlib_colormap(cmap_var)
+    if clim is not None:
+        norm = Normalize(vmin=clim[0], vmax=clim[1])
 
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
@@ -287,14 +278,8 @@ candidate_indices = np.where(combined_mask)[0]
 print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
 print(f"Seam buffer excluded: {near_seam_mask.sum()} / {len(df)} points within {seam_buffer}m of y=0")
 print(f"Valid blue candidate points (final): {len(candidate_indices)} / {len(df)}")
-
-print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
-print(f"Valid blue candidate points (one side, excluding edges): {len(candidate_indices)} / {len(df)}")
-
-
 print(f"Total unique mesh points: {len(df)}")
 print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
-print(f"Valid blue candidate points: {len(candidate_indices)} / {len(df)}")
 
 X_tilde = Cp_ensemble_unique - Cp_mean_unique
 U, sigma, Vt = np.linalg.svd(X_tilde, full_matrices=False)
@@ -344,12 +329,12 @@ print(f"Held-out RMS Reconstruction Error on Case {test_case_idx}: {error_rms_he
 # 7. GENERATE STANDARD TOP/ISOMETRIC VISUALIZATIONS
 plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
 plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", output_path="reconstructed.png", cmap_var="CpS", sensors=sensors, elev=-90, azim=0)
-plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", elev=-90, azim=0)
+plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", clim=(0, 0.5), elev=-90, azim=0)
 
 plot_interactive_plotly(
     df, 
     Cp_recon, 
-    title=f"Reconstructed CpS (Case {test_case_idx}) with 20 Unique Sensors", 
+    title=f"Reconstructed CpS (Case {test_case_idx}) with {len(sensors)} Optimal Sensors", 
     sensors=sensors, 
     output_html="reconstructed_3d.html"
 )
@@ -358,7 +343,7 @@ print("Sensor y-values (sorted):", np.sort(sensor_y))
 # 8. GENERATE BOTTOM/UNDERSIDE VISUALIZATIONS
 plot_data(df, Cp_true_case, f"True CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_original.png", cmap_var="CpS", elev=25, azim=-60)
 plot_data(df, Cp_recon, f"Reconstructed CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_reconstructed.png", cmap_var="CpS", sensors=sensors, elev=25, azim=-60)
-plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error - Bottom Underside", output_path="bottom_error.png", cmap_var="CpT", elev=25, azim=-60)
+plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error - Bottom Underside", output_path="bottom_error.png", cmap_var="CpT", clim=(0, 0.5), elev=25, azim=-60)
 
 # 8. GENERATE TRUE BOTTOM-VIEW VISUALIZATIONS (Named by Camera Angles: elev90_azim0)
 plot_data(
@@ -382,6 +367,6 @@ plot_data(
     df, np.abs(Cp_recon - Cp_true_case), 
     "Absolute Error - Bottom View [elev=90, azim=0]", 
     output_path="elev90_azim0_error.png", 
-    cmap_var="CpT", 
+    cmap_var="CpT", clim=(0, 0.5),
     elev=90, azim=0
 )
