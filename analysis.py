@@ -250,14 +250,23 @@ df = pd.DataFrame({
 if os.path.exists(mask_path):
     mask_data = np.load(mask_path)
     raw_mask = mask_data["excluded"]
-    if len(raw_mask) != len(df):
+    if len(raw_mask) == len(df):
+        excluded_mask = raw_mask.astype(bool)
+    elif len(raw_mask) == len(coords):
+        excluded_mask = raw_mask[unique_indices].astype(bool)
+    elif "x" in mask_data:
         print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
-        mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]]) if "x" in mask_data else coords[:len(raw_mask)]
+        mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]])
+        if np.abs(mask_coords).max() > 100:  # mask stored in mm, mesh in metres
+            mask_coords = mask_coords / 1000.0
         tree = cKDTree(mask_coords)
         _, nearest_idx = tree.query(coords_unique)
         excluded_mask = raw_mask[nearest_idx].astype(bool)
     else:
-        excluded_mask = raw_mask[unique_indices].astype(bool)
+        # A mask with no coordinates can only be trusted on the exact mesh it was built for.
+        print(f"WARNING: {mask_path} has {len(raw_mask)} pts, no coordinates, and does not match "
+              f"this mesh ({len(df)} pts). Ignoring it - regenerate the mask for this mesh.")
+        excluded_mask = np.zeros(len(df), dtype=bool)
 else:
     excluded_mask = np.zeros(len(df), dtype=bool)
 
