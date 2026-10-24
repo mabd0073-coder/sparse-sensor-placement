@@ -176,155 +176,156 @@ def plot_interactive_bottom_plotly(df, scalar_data, title="Interactive Bottom Vi
     print(f"Saved interactive bottom-view 3D model to {output_html}")
 
 
-# ==========================================
-# MAIN EXECUTION PIPELINE
-# ==========================================
+if __name__ == "__main__":
+    # ==========================================
+    # MAIN EXECUTION PIPELINE
+    # ==========================================
 
-DATA_DIR = os.environ.get("SSP_DATA_DIR", "data")
-ensemble_path = os.path.join(DATA_DIR, os.environ.get("SSP_ENSEMBLE", "side_diffuser_ensemble_highres.npz"))
-mask_path = os.path.join(DATA_DIR, "exclusion_mask.npz")
-if not os.path.exists(ensemble_path):
-    raise FileNotFoundError(f"Could not find {ensemble_path}.")
+    DATA_DIR = os.environ.get("SSP_DATA_DIR", "data")
+    ensemble_path = os.path.join(DATA_DIR, os.environ.get("SSP_ENSEMBLE", "side_diffuser_ensemble_highres.npz"))
+    mask_path = os.path.join(DATA_DIR, "exclusion_mask.npz")
+    if not os.path.exists(ensemble_path):
+        raise FileNotFoundError(f"Could not find {ensemble_path}.")
 
-data = np.load(ensemble_path)
-Cp_ensemble = data["Cp_matrix"]
-x, y, z = data["x"], data["y"], data["z"]
-coords = np.column_stack([x, y, z])
-Cp_mean = Cp_ensemble.mean(axis=1, keepdims=True)
+    data = np.load(ensemble_path)
+    Cp_ensemble = data["Cp_matrix"]
+    x, y, z = data["x"], data["y"], data["z"]
+    coords = np.column_stack([x, y, z])
+    Cp_mean = Cp_ensemble.mean(axis=1, keepdims=True)
 
-_, unique_indices = np.unique(np.round(coords, decimals=3), axis=0, return_index=True)
-unique_indices.sort()
+    _, unique_indices = np.unique(np.round(coords, decimals=3), axis=0, return_index=True)
+    unique_indices.sort()
 
-coords_unique = coords[unique_indices]
-Cp_ensemble_unique = Cp_ensemble[unique_indices, :]
-Cp_mean_unique = Cp_mean[unique_indices]
+    coords_unique = coords[unique_indices]
+    Cp_ensemble_unique = Cp_ensemble[unique_indices, :]
+    Cp_mean_unique = Cp_mean[unique_indices]
 
-df = pd.DataFrame({
-    "x": coords_unique[:, 0],
-    "y": coords_unique[:, 1],
-    "z": coords_unique[:, 2],
-    "CpS": Cp_mean_unique.flatten()
-})
+    df = pd.DataFrame({
+        "x": coords_unique[:, 0],
+        "y": coords_unique[:, 1],
+        "z": coords_unique[:, 2],
+        "CpS": Cp_mean_unique.flatten()
+    })
 
-if os.path.exists(mask_path):
-    mask_data = np.load(mask_path)
-    raw_mask = mask_data["excluded"]
-    if len(raw_mask) == len(df):
-        excluded_mask = raw_mask.astype(bool)
-    elif len(raw_mask) == len(coords):
-        excluded_mask = raw_mask[unique_indices].astype(bool)
-    elif "x" in mask_data:
-        print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
-        mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]])
-        if np.abs(mask_coords).max() > 100:  # mask stored in mm, mesh in metres
-            mask_coords = mask_coords / 1000.0
-        tree = cKDTree(mask_coords)
-        _, nearest_idx = tree.query(coords_unique)
-        excluded_mask = raw_mask[nearest_idx].astype(bool)
+    if os.path.exists(mask_path):
+        mask_data = np.load(mask_path)
+        raw_mask = mask_data["excluded"]
+        if len(raw_mask) == len(df):
+            excluded_mask = raw_mask.astype(bool)
+        elif len(raw_mask) == len(coords):
+            excluded_mask = raw_mask[unique_indices].astype(bool)
+        elif "x" in mask_data:
+            print(f"Aligning mask ({len(raw_mask)} pts) to unique mesh ({len(df)} pts)...")
+            mask_coords = np.column_stack([mask_data["x"], mask_data["y"], mask_data["z"]])
+            if np.abs(mask_coords).max() > 100:  # mask stored in mm, mesh in metres
+                mask_coords = mask_coords / 1000.0
+            tree = cKDTree(mask_coords)
+            _, nearest_idx = tree.query(coords_unique)
+            excluded_mask = raw_mask[nearest_idx].astype(bool)
+        else:
+            # A mask with no coordinates can only be trusted on the exact mesh it was built for.
+            print(f"WARNING: {mask_path} has {len(raw_mask)} pts, no coordinates, and does not match "
+                  f"this mesh ({len(df)} pts). Ignoring it - regenerate the mask for this mesh.")
+            excluded_mask = np.zeros(len(df), dtype=bool)
     else:
-        # A mask with no coordinates can only be trusted on the exact mesh it was built for.
-        print(f"WARNING: {mask_path} has {len(raw_mask)} pts, no coordinates, and does not match "
-              f"this mesh ({len(df)} pts). Ignoring it - regenerate the mask for this mesh.")
         excluded_mask = np.zeros(len(df), dtype=bool)
-else:
-    excluded_mask = np.zeros(len(df), dtype=bool)
 
-# After building coords_unique and excluded_mask, add a one-side restriction.
-# Only one physical side diffuser will be manufactured, so sensors should
-# only ever be selected from one side's candidate points (left, y <= 0).
-one_side_mask = coords_unique[:, 1] <= 0
+    # After building coords_unique and excluded_mask, add a one-side restriction.
+    # Only one physical side diffuser will be manufactured, so sensors should
+    # only ever be selected from one side's candidate points (left, y <= 0).
+    one_side_mask = coords_unique[:, 1] <= 0
 
-# Exclude a buffer zone around the mirror symmetry seam (y=0), since
-# interpolation/stitching artifacts there can create a false "high
-# information" region that the greedy algorithm wrongly piles sensors into
-seam_buffer = 0.01  # metres — adjust if sensors still cluster near y=0
-near_seam_mask = np.abs(coords_unique[:, 1]) < seam_buffer
+    # Exclude a buffer zone around the mirror symmetry seam (y=0), since
+    # interpolation/stitching artifacts there can create a false "high
+    # information" region that the greedy algorithm wrongly piles sensors into
+    seam_buffer = 0.01  # metres — adjust if sensors still cluster near y=0
+    near_seam_mask = np.abs(coords_unique[:, 1]) < seam_buffer
 
-combined_mask = one_side_mask & (~excluded_mask) & (~near_seam_mask)
-candidate_indices = np.where(combined_mask)[0]
+    combined_mask = one_side_mask & (~excluded_mask) & (~near_seam_mask)
+    candidate_indices = np.where(combined_mask)[0]
 
-print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
-print(f"Seam buffer excluded: {near_seam_mask.sum()} / {len(df)} points within {seam_buffer}m of y=0")
-print(f"Valid blue candidate points (final): {len(candidate_indices)} / {len(df)}")
-print(f"Total unique mesh points: {len(df)}")
-print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
+    print(f"One-side restriction: {one_side_mask.sum()} / {len(df)} points on selected side")
+    print(f"Seam buffer excluded: {near_seam_mask.sum()} / {len(df)} points within {seam_buffer}m of y=0")
+    print(f"Valid blue candidate points (final): {len(candidate_indices)} / {len(df)}")
+    print(f"Total unique mesh points: {len(df)}")
+    print(f"Excluded edge points (red): {excluded_mask.sum()} / {len(df)}")
 
-variance_lim = 0.90
-U_r, _, r = compute_pod(Cp_ensemble_unique, variance_lim)
-print(f"\nSVD Modes retained for {variance_lim*100:.0f}% variance: {r}")
+    variance_lim = 0.90
+    U_r, _, r = compute_pod(Cp_ensemble_unique, variance_lim)
+    print(f"\nSVD Modes retained for {variance_lim*100:.0f}% variance: {r}")
 
-U_r_candidates = U_r[candidate_indices, :]
-coords_candidates = coords_unique[candidate_indices]
+    U_r_candidates = U_r[candidate_indices, :]
+    coords_candidates = coords_unique[candidate_indices]
 
-n_sensors = 40
-selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates, verbose=True)
+    n_sensors = 40
+    selected_local = greedy_sensor_placement(U_r_candidates, n_sensors, coords=coords_candidates, verbose=True)
 
-selected_global = candidate_indices[selected_local]
-sensors = df.iloc[selected_global]
+    selected_global = candidate_indices[selected_local]
+    sensors = df.iloc[selected_global]
 
-print("\nSelected sensor coordinates (Unique):")
-print(sensors[['x', 'y', 'z']])
+    print("\nSelected sensor coordinates (Unique):")
+    print(sensors[['x', 'y', 'z']])
 
-test_case_idx = 0
-y_test_case = Cp_ensemble_unique[selected_global, test_case_idx]
-Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
+    test_case_idx = 0
+    y_test_case = Cp_ensemble_unique[selected_global, test_case_idx]
+    Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
 
-Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
+    Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
 
-error_rms = np.sqrt(np.mean((Cp_recon - Cp_true_case)**2))
-print(f"\nIn-sample RMS Reconstruction Error on Case {test_case_idx} (case was in the training set): {error_rms:.6f}")
+    error_rms = np.sqrt(np.mean((Cp_recon - Cp_true_case)**2))
+    print(f"\nIn-sample RMS Reconstruction Error on Case {test_case_idx} (case was in the training set): {error_rms:.6f}")
 
-# Held-out check: rebuild modes and sensors without the test case, then reconstruct it.
-train_cols = np.arange(Cp_ensemble_unique.shape[1]) != test_case_idx
-Cp_train = Cp_ensemble_unique[:, train_cols]
-U_r_train, Cp_mean_train, r_train = compute_pod(Cp_train, variance_lim)
-print(f"\nHeld-out run: {r_train} modes from {train_cols.sum()} training cases")
-selected_train = candidate_indices[greedy_sensor_placement(U_r_train[candidate_indices, :], n_sensors, verbose=True)]
-Cp_recon_heldout = reconstruct(U_r_train, Cp_mean_train, selected_train, Cp_true_case[selected_train])
-error_rms_heldout = np.sqrt(np.mean((Cp_recon_heldout - Cp_true_case)**2))
-print(f"Held-out RMS Reconstruction Error on Case {test_case_idx}: {error_rms_heldout:.6f}")
+    # Held-out check: rebuild modes and sensors without the test case, then reconstruct it.
+    train_cols = np.arange(Cp_ensemble_unique.shape[1]) != test_case_idx
+    Cp_train = Cp_ensemble_unique[:, train_cols]
+    U_r_train, Cp_mean_train, r_train = compute_pod(Cp_train, variance_lim)
+    print(f"\nHeld-out run: {r_train} modes from {train_cols.sum()} training cases")
+    selected_train = candidate_indices[greedy_sensor_placement(U_r_train[candidate_indices, :], n_sensors, verbose=True)]
+    Cp_recon_heldout = reconstruct(U_r_train, Cp_mean_train, selected_train, Cp_true_case[selected_train])
+    error_rms_heldout = np.sqrt(np.mean((Cp_recon_heldout - Cp_true_case)**2))
+    print(f"Held-out RMS Reconstruction Error on Case {test_case_idx}: {error_rms_heldout:.6f}")
 
-# 7. GENERATE STANDARD TOP/ISOMETRIC VISUALIZATIONS
-plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
-plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", output_path="reconstructed.png", cmap_var="CpS", sensors=sensors, elev=-90, azim=0)
-plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", clim=(0, 0.5), elev=-90, azim=0)
+    # 7. GENERATE STANDARD TOP/ISOMETRIC VISUALIZATIONS
+    plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
+    plot_data(df, Cp_recon, f"Reconstructed CpS (Case {test_case_idx})", output_path="reconstructed.png", cmap_var="CpS", sensors=sensors, elev=-90, azim=0)
+    plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error", output_path="error.png", cmap_var="CpT", clim=(0, 0.5), elev=-90, azim=0)
 
-plot_interactive_plotly(
-    df, 
-    Cp_recon, 
-    title=f"Reconstructed CpS (Case {test_case_idx}) with {len(sensors)} Optimal Sensors", 
-    sensors=sensors, 
-    output_html="reconstructed_3d.html"
-)
-sensor_y = sensors["y"].to_numpy()
-print("Sensor y-values (sorted):", np.sort(sensor_y))
-# 8. GENERATE BOTTOM/UNDERSIDE VISUALIZATIONS
-plot_data(df, Cp_true_case, f"True CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_original.png", cmap_var="CpS", elev=25, azim=-60)
-plot_data(df, Cp_recon, f"Reconstructed CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_reconstructed.png", cmap_var="CpS", sensors=sensors, elev=25, azim=-60)
-plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error - Bottom Underside", output_path="bottom_error.png", cmap_var="CpT", clim=(0, 0.5), elev=25, azim=-60)
+    plot_interactive_plotly(
+        df, 
+        Cp_recon, 
+        title=f"Reconstructed CpS (Case {test_case_idx}) with {len(sensors)} Optimal Sensors", 
+        sensors=sensors, 
+        output_html="reconstructed_3d.html"
+    )
+    sensor_y = sensors["y"].to_numpy()
+    print("Sensor y-values (sorted):", np.sort(sensor_y))
+    # 8. GENERATE BOTTOM/UNDERSIDE VISUALIZATIONS
+    plot_data(df, Cp_true_case, f"True CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_original.png", cmap_var="CpS", elev=25, azim=-60)
+    plot_data(df, Cp_recon, f"Reconstructed CpS - Bottom Underside (Case {test_case_idx})", output_path="bottom_reconstructed.png", cmap_var="CpS", sensors=sensors, elev=25, azim=-60)
+    plot_data(df, np.abs(Cp_recon - Cp_true_case), "Absolute Error - Bottom Underside", output_path="bottom_error.png", cmap_var="CpT", clim=(0, 0.5), elev=25, azim=-60)
 
-# 8. GENERATE TRUE BOTTOM-VIEW VISUALIZATIONS (Named by Camera Angles: elev90_azim0)
-plot_data(
-    df, Cp_true_case, 
-    f"True CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
-    output_path="elev90_azim0_original.png", 
-    cmap_var="CpS", 
-    elev=90, azim=0
-)
+    # 8. GENERATE TRUE BOTTOM-VIEW VISUALIZATIONS (Named by Camera Angles: elev90_azim0)
+    plot_data(
+        df, Cp_true_case, 
+        f"True CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
+        output_path="elev90_azim0_original.png", 
+        cmap_var="CpS", 
+        elev=90, azim=0
+    )
 
-plot_data(
-    df, Cp_recon, 
-    f"Reconstructed CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
-    output_path="elev90_azim0_reconstructed.png", 
-    cmap_var="CpS", 
-    sensors=sensors, 
-    elev=90, azim=0
-)
+    plot_data(
+        df, Cp_recon, 
+        f"Reconstructed CpS - Bottom View [elev=90, azim=0] (Case {test_case_idx})", 
+        output_path="elev90_azim0_reconstructed.png", 
+        cmap_var="CpS", 
+        sensors=sensors, 
+        elev=90, azim=0
+    )
 
-plot_data(
-    df, np.abs(Cp_recon - Cp_true_case), 
-    "Absolute Error - Bottom View [elev=90, azim=0]", 
-    output_path="elev90_azim0_error.png", 
-    cmap_var="CpT", clim=(0, 0.5),
-    elev=90, azim=0
-)
+    plot_data(
+        df, np.abs(Cp_recon - Cp_true_case), 
+        "Absolute Error - Bottom View [elev=90, azim=0]", 
+        output_path="elev90_azim0_error.png", 
+        cmap_var="CpT", clim=(0, 0.5),
+        elev=90, azim=0
+    )
