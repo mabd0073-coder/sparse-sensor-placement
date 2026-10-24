@@ -325,7 +325,21 @@ Cp_true_case = Cp_ensemble_unique[:, test_case_idx]
 Cp_recon = reconstruct(U_r, Cp_mean_unique, selected_global, y_test_case)
 
 error_rms = np.sqrt(np.mean((Cp_recon - Cp_true_case)**2))
-print(f"\nRMS Reconstruction Error on Case {test_case_idx}: {error_rms:.6f}")
+print(f"\nIn-sample RMS Reconstruction Error on Case {test_case_idx} (case was in the training set): {error_rms:.6f}")
+
+# Held-out check: rebuild modes and sensors without the test case, then reconstruct it.
+train_cols = np.arange(Cp_ensemble_unique.shape[1]) != test_case_idx
+Cp_train = Cp_ensemble_unique[:, train_cols]
+Cp_mean_train = Cp_train.mean(axis=1, keepdims=True)
+U_train, sigma_train, _ = np.linalg.svd(Cp_train - Cp_mean_train, full_matrices=False)
+cumulative_train = np.cumsum(sigma_train**2) / np.sum(sigma_train**2)
+r_train = max(2, np.searchsorted(cumulative_train, variance_lim) + 1)
+U_r_train = U_train[:, :r_train]
+print(f"\nHeld-out run: {r_train} modes from {train_cols.sum()} training cases")
+selected_train = candidate_indices[greedy_sensor_placement(U_r_train[candidate_indices, :], n_sensors)]
+Cp_recon_heldout = reconstruct(U_r_train, Cp_mean_train, selected_train, Cp_true_case[selected_train])
+error_rms_heldout = np.sqrt(np.mean((Cp_recon_heldout - Cp_true_case)**2))
+print(f"Held-out RMS Reconstruction Error on Case {test_case_idx}: {error_rms_heldout:.6f}")
 
 # 7. GENERATE STANDARD TOP/ISOMETRIC VISUALIZATIONS
 plot_data(df, Cp_true_case, f"True CpS (Case {test_case_idx})", output_path="original.png", cmap_var="CpS", elev=-90, azim=0)
