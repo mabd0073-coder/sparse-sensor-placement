@@ -1,0 +1,32 @@
+python -m cProfile -s cumtime analysis.py  (highres ensemble, 2026-10-25; analysis output omitted, top 25 rows by cumulative time)
+
+         12339967 function calls (11975160 primitive calls) in 94.139 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      102   55.332    0.542   60.513    0.593 collections.py:360(draw)
+       30    0.001    0.000   60.471    2.016 art3d.py:985(draw)
+       30    0.000    0.000   60.431    2.014 collections.py:1127(draw)
+      252    0.104    0.000    5.761    0.023 art3d.py:1143(_maybe_depth_shade_and_sort_colors)
+        1    0.162    0.162    5.310    5.310 analysis.py:91(plot_interactive_plotly)
+      143    0.006    0.000    4.960    0.035 __init__.py:1(<module>)
+        9    0.000    0.000    4.865    0.541 pyplot.py:903(figure)
+        9    0.000    0.000    4.864    0.540 pyplot.py:573(new_figure_manager)
+ 1206/114    0.011    0.000    4.815    0.042 <frozen importlib._bootstrap>:1349(_find_and_load)
+  1131/56    0.006    0.000    4.809    0.086 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)
+  1101/60    0.004    0.000    4.708    0.078 <frozen importlib._bootstrap>:911(_load_unlocked)
+   967/59    0.004    0.000    4.665    0.079 <frozen importlib._bootstrap_external>:993(exec_module)
+        2    0.140    0.070    4.614    2.307 core.py:26(compute_pod)
+        2    4.401    2.200    4.401    2.200 _linalg.py:1666(svd)
+      240    0.021    0.000    4.316    0.018 art3d.py:1609(_zalpha)
+ 2634/108    0.004    0.000    4.245    0.039 <frozen importlib._bootstrap>:480(_call_with_frames_removed)
+      174    0.003    0.000    4.010    0.023 art3d.py:1169(get_edgecolor)
+        9    0.008    0.001    3.989    0.443 backend_bases.py:3657(new_figure_manager)
+        9    0.000    0.000    3.969    0.441 backend_bases.py:3666(new_figure_manager_given_figure)
+        9    0.000    0.000    3.969    0.441 backend_bases.py:1825(new_manager)
+        9    0.001    0.000    3.969    0.441 _backend_tk.py:539(create_with_canvas)
+     1092    0.006    0.000    3.457    0.003 <frozen importlib._bootstrap_external>:1187(get_data)
+  664/128    0.001    0.000    3.336    0.026 {built-in method builtins.__import__}
+     1092    3.235    0.003    3.235    0.003 {built-in method _io.open_code}
+        9    0.000    0.000    3.041    0.338 __init__.py:2326(__init__)
