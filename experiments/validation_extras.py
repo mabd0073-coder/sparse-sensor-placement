@@ -14,10 +14,23 @@ Prints, for a snapshot ensemble (N points x M cases):
    both ride heights <= --edge mm and test on the rest, and the correlation of
    each case's mean Cp with FRH + RRH and with the pitch RRH - FRH.
 
+Matching case_params rows to ensemble columns: if the .npz stores case names
+(``case_names``), rows are matched by folder name. Otherwise the rows are taken
+in file order; when the file has more rows than the ensemble has cases, pick
+them with --rows (a pandas query, e.g. "sweep == 50.28"). The selected rows
+must come from one sweep and vary only in FRH/RRH. --case-order names a CSV
+(e.g. loo_results.csv) whose held_out_case column gives the folder of each
+ensemble column; the selected rows must match it in order, and if it has an
+rms_error column it is compared with this script's leave-one-out errors.
+
 Usage:
     python experiments/validation_extras.py data/side_diffuser_ensemble_dedup.npz \
         --params data/case_params.csv --sensors 10
+    python experiments/validation_extras.py data/side_diffuser_ensemble_dedup.npz \
+        --params data/case_params.csv --rows "sweep == 50.28" --case-order data/loo_results.csv
 """
+import sys
+
 import argparse
 
 import numpy as np
@@ -67,6 +80,48 @@ def test_split(X, train_idx, test_idx, k, var):
     return pod, base, r
 
 
+def select_params(cp, npz, M, rows=None, case_order=None):
+    """Return the case_params rows matching the ensemble columns, in column order.
+
+    Returns None (with a printed reason) when no safe match is possible.
+    """
+    if "case_names" in npz.files:
+        names = [str(n) for n in npz["case_names"]]
+        missing = [n for n in names if n not in set(cp["folder"])]
+        if missing:
+            sys.exit(f"[error] {len(missing)} ensemble case(s) not in params, e.g. {missing[0]}")
+        print(f"\nParams matched by case name ({len(names)} cases)")
+        return cp.set_index("folder").loc[names].reset_index()
+
+    if rows is not None:
+        cp = cp.query(rows).reset_index(drop=True)
+        print(f"\nParams rows selected with --rows \"{rows}\": {len(cp)}")
+    if len(cp) != M:
+        hint = "" if rows is not None else "; use --rows to select the matching rows"
+        print(f"\n[skip extrapolation] params have {len(cp)} rows, ensemble has {M} cases{hint}")
+        return None
+
+    if rows is not None:
+        sweeps = cp["sweep"].unique() if "sweep" in cp else []
+        if len(sweeps) != 1:
+            sys.exit(f"[error] selected rows span several sweeps: {list(sweeps)}")
+        fixed = [c for c in ("R", "S", "CR", "Y", "V") if c in cp and cp[c].nunique() > 1]
+        if fixed:
+            sys.exit(f"[error] selected rows are not ride-height-only cases; {fixed} vary")
+        print(f"  all from sweep {sweeps[0]:g}; only FRH/RRH vary")
+
+    if case_order is not None:
+        order = pd.read_csv(case_order)["held_out_case"].tolist()
+        if order != cp["folder"].tolist():
+            bad = next(i for i, (a, b) in enumerate(zip(order, cp["folder"])) if a != b) \
+                if len(order) == len(cp) else None
+            sys.exit(f"[error] params rows do not match the column order in {case_order}"
+                     + (f" (first mismatch at column {bad})" if bad is not None else
+                        f" ({len(order)} vs {len(cp)} entries)"))
+        print(f"  folder order matches {case_order} for all {M} columns")
+    return cp
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("ensemble", help=".npz file with a Cp_matrix array (N points x M cases)")
@@ -75,9 +130,14 @@ def main():
     p.add_argument("--sensors", type=int, default=10)
     p.add_argument("--variance", type=float, default=0.90)
     p.add_argument("--edge", type=float, default=50.0, help="extrapolation split [mm]")
+    p.add_argument("--rows", default=None,
+                   help='pandas query selecting the params rows, e.g. "sweep == 50.28"')
+    p.add_argument("--case-order", default=None,
+                   help="CSV with a held_out_case column giving the folder of each ensemble column")
     a = p.parse_args()
 
-    X = np.load(a.ensemble)[a.key]
+    npz = np.load(a.ensemble)
+    X = npz[a.key]
     N, M = X.shape
     print(f"Ensemble {a.ensemble}: {N} points x {M} cases")
 
@@ -101,10 +161,15 @@ def main():
     vals, counts = np.unique(modes, return_counts=True)
     print("  modes kept per round: " + ", ".join(f"{v} mode(s) in {c} rounds" for v, c in zip(vals, counts)))
 
+    if a.case_order:
+        ref = pd.read_csv(a.case_order)
+        if "rms_error" in ref and len(ref) == M:
+            diff = np.abs(ref["rms_error"].to_numpy(float) - pod)
+            print(f"  per-column LOO RMS vs {a.case_order}: max abs difference {diff.max():.2e}")
+
     if a.params:
-        cp = pd.read_csv(a.params)
-        if len(cp) != M:
-            print(f"\n[skip extrapolation] {a.params} has {len(cp)} rows, ensemble has {M} cases")
+        cp = select_params(pd.read_csv(a.params), npz, M, a.rows, a.case_order)
+        if cp is None:
             return
         frh, rrh = cp["FRH"].to_numpy(float), cp["RRH"].to_numpy(float)
         mean_cp = X.mean(axis=0)
