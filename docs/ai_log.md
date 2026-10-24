@@ -18,3 +18,4 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 Merged feat/tests-docs into feat/final-analysis (base docs/report-figures lacked sensor_opt, tests and docs).
 - 2026-10-25 `greedy_sensor_placement` takes an optional `min_dist` (metres, default 0 = unchanged picks); tests for spacing and for identical picks at 0.
 - 2026-10-25 Fixed half-car detection in cluster/load_sweep_ensemble.py and master_load_sweep_ensemble.py so one-sided data on either side is mirrored; added tests/test_loaders.py.
+- 2026-10-25 Added cluster/load_rrf_sweeps.py (RRF train/test ensembles on left-side points, k=4 IDW, neighbour-spread diagnostic) and tests/test_load_rrf_sweeps.py.
