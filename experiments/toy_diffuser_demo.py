@@ -285,6 +285,72 @@ def fig_method(out, column=False):
     print(f"1 mode, 3 sensors -> positions {np.round(x[clustered], 3)} m (clustering)")
 
 
+def fig_method_split(out):
+    """The four panels of fig_method as separate one-column figures (fig5a-d)."""
+    g = np.linspace(15, 55, 10)
+    X = np.column_stack([cp(a, b) for a in g for b in g])
+    mean = X.mean(1, keepdims=True)
+    U, s, _ = np.linalg.svd(X - mean, full_matrices=False)
+    energy = s ** 2 / np.sum(s ** 2)
+    test = (22.0, 48.0)
+    truth = cp(*test)
+    sel = greedy(U[:, :2], 2)
+    a, *_ = np.linalg.lstsq(U[sel, :2], truth[sel] - mean[sel, 0], rcond=None)
+    rec = mean[:, 0] + U[:, :2] @ a
+    rms_rec = np.sqrt(np.mean((rec - truth) ** 2))
+    rms_base = np.sqrt(np.mean((mean[:, 0] - truth) ** 2))
+    plt.rcParams.update({"font.size": 7.5})
+
+    def new():
+        fig, ax = plt.subplots(figsize=(3.45, 2.1))
+        return fig, ax
+
+    def save(fig, ax, name):
+        style(ax)
+        ax.tick_params(labelsize=7)
+        fig.savefig(out / name, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+
+    fig, ax = new()
+    for j in range(X.shape[1]):
+        ax.plot(x, X[:, j], color=GREY, lw=0.5, alpha=0.6)
+    ax.plot(x, mean[:, 0], color=INK, lw=2.0, label="mean of all 100 cases")
+    ax.set(xlabel="position along floor [m]", ylabel="Cp")
+    ax.legend(frameon=False, fontsize=7, loc="lower right")
+    save(fig, ax, "fig5a_cases.png")
+
+    fig, ax = new()
+    im = ax.imshow(X, aspect="auto", cmap="Blues_r", extent=[0.5, 100.5, L, 0])
+    ax.set(xlabel="case number (column of X)", ylabel="position [m] (row of X)")
+    cb = fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02)
+    cb.set_label("Cp", fontsize=7)
+    cb.ax.tick_params(labelsize=6.5)
+    style(ax)
+    ax.grid(False)
+    ax.tick_params(labelsize=7)
+    fig.savefig(out / "fig5b_matrix.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = new()
+    for i, c in enumerate([BLUE, ORANGE, AQUA]):
+        ax.plot(x, U[:, i] / np.max(np.abs(U[:, i])), color=c, lw=1.8,
+                label=f"mode {i + 1}: {energy[i] * 100:.{1 if energy[i] > 0.01 else 2}f} % of variation")
+    ax.axhline(0, color="#8a8980", lw=0.8)
+    ax.set(xlabel="position along floor [m]", ylabel="mode shape (scaled)", ylim=(-1.15, 2.1))
+    ax.legend(frameon=False, fontsize=6.8, loc="upper right")
+    save(fig, ax, "fig5c_modes.png")
+
+    fig, ax = new()
+    ax.plot(x, truth, color=INK, lw=2.4, label="true field (unseen case)")
+    ax.plot(x, mean[:, 0], color=GREY, lw=1.5, ls="--", label=f"average-field guess (RMS {rms_base:.2f})")
+    ax.plot(x, rec, color=BLUE, lw=1.6, ls=(0, (4, 2)), label=f"2 sensors + 2 modes (RMS {rms_rec:.3f})")
+    ax.plot(x[sel], truth[sel], "o", color=ORANGE, ms=6, mec="white", mew=1, label="sensor readings", zorder=5)
+    ax.set(xlabel="position along floor [m]", ylabel="Cp", ylim=(-3.0, 0.1))
+    ax.legend(frameon=False, fontsize=6.8, loc="lower right")
+    save(fig, ax, "fig5d_rebuild.png")
+    plt.rcParams.update({"font.size": 8.5})
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default="results/figures")
@@ -295,6 +361,7 @@ def main():
     fig_method(out)
     fig_physics(out, column=True)
     fig_method(out, column=True)
+    fig_method_split(out)
 
 
 if __name__ == "__main__":
