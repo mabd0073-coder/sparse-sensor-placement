@@ -35,7 +35,7 @@ The data is not in git. Put the files in `data/` at the repo root:
 | `loo_results.csv` | experiments | held-out folder and LOO RMS for each dedup column, from `check_correlation.py` |
 | `rrf_train.npz`, `rrf_test.npz` | RRF validation | written by `cluster/load_rrf_sweeps.py` on the cluster |
 
-**The dedup ensemble looks corrupted.** Its fields are almost flat (case 0 varies by 0.012 in Cp over the whole surface), and they do not match the highres ensemble of the same 100 cases. The likely cause is a unit mismatch: `all_points.csv` is in mm and `cluster/load_sweep_single_idw.py` does not convert the CFD points to the same unit. See `results/validation_extras_comparison.txt`. Prefer the highres ensemble until dedup is rebuilt.
+**The dedup ensemble (A0) is withdrawn.** Do not use its Cp data or any result built on it. Its fields are almost flat (case 0 varies by 0.012 in Cp over the whole surface), and they do not match the highres ensemble of the same 100 cases. The likely cause is a unit mismatch: `all_points.csv` is in mm and `cluster/load_sweep_single_idw.py` does not convert the CFD points to the same unit. See `results/validation_extras_comparison.txt`. Its x, y, z coordinates are still used as the grid of `exclusion_mask.npz`, which was built on that mesh.
 
 Two environment variables override the defaults:
 
@@ -59,6 +59,27 @@ $env:SSP_ENSEMBLE = "side_diffuser_ensemble_highres_NN.npz"; python analysis.py;
 ```
 
 The script prints the selected sensors and the in-sample and held-out RMS errors. It writes PNG plots and `reconstructed_3d.html` to the repo root, overwriting the previous run's files. On Windows, close any open preview tabs of those PNGs first; a file held open by another program makes the save fail with `OSError: [Errno 22]`.
+
+## Sensor layout
+
+`experiments/feasible_layout.py` picks 24 sensors on the left side, restricted to points that can actually be built:
+- outside the CAD exclusion zones
+- at least 15 mm from an edge
+- at least 50 mm apart
+
+The layout is refined with exchange swaps. To rebuild it (writes `feasible_layout.csv` and `.png` to `--outdir`):
+
+```
+python experiments/feasible_layout.py data/side_diffuser_ensemble_highres_NN.npz --params data/case_params.csv --mask data/exclusion_mask.npz --mask-grid data/side_diffuser_ensemble_dedup.npz --no-validate --outdir results
+```
+
+To view the layout in 3-D (open the HTML in a browser):
+
+```
+python experiments/show_layout.py data/side_diffuser_ensemble_highres_NN.npz --layout results/feasible_layout.csv -o results/feasible_layout_3d.html
+```
+
+On 2026-10-25 a rerun of the first command reproduced `results/feasible_layout.csv` byte for byte.
 
 ## Experiments
 
@@ -107,7 +128,7 @@ The tests use synthetic data only, so they need no data files. `tests/test_core.
 - that the reconstruction error falls as sensors are added under noise
 - that NaN input raises `CfdDataError`
 
-`tests/test_loaders.py` checks half-car mirroring on each side, and `tests/test_load_rrf_sweeps.py` runs the RRF loader on a small synthetic sweep tree.
+`tests/test_loaders.py` checks half-car mirroring on each side, and `tests/test_load_rrf_sweeps.py` runs the RRF loader on a small synthetic sweep tree. `tests/test_feasible_layout.py` checks that `feasible_layout.greedy` keeps to the allowed points and to `min_dist`, and that `exchange` never lowers log det.
 
 The latest report is in `docs/test_report.txt`.
 
