@@ -268,7 +268,7 @@ def plot(coords, F, L, out):
     axs[0].set_title("(a) top view", fontsize=7.5)
     axs[1].set_title("(b) side view", fontsize=7.5)
     h, l = axs[0].get_legend_handles_labels()
-    fig.legend(h, l, fontsize=6, frameon=False, loc="lower center", ncol=2, markerscale=1.5)
+    fig.legend(h, l, fontsize=5.8, frameon=False, loc="lower center", ncol=2, markerscale=1.5, columnspacing=0.8, handletextpad=0.3)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(out, dpi=250)
 
