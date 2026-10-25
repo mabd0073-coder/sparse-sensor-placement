@@ -33,3 +33,4 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 README: Sensor layout section (rebuild and 3-D view commands); dedup ensemble (A0) withdrawn. Added report/README.md placeholder for the final PDF.
 - 2026-10-25 Regenerated docs/test_report.txt (22 passed) and docs/html.
 - 2026-10-25 Added experiments/robustness.py (part 2 dropout and residual flag, part 3 noise propagation, part 4 Gram/SVD and float32, part 8 input resolution) and tests/test_robustness.py.
+- 2026-10-25 Ran robustness.py --part all (832 s): results/robustness_{2,3,4,8}.{csv,png} and results/robustness.txt.
