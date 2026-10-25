@@ -1,0 +1,11 @@
+test,layout,mean,max
+a_LOO_all,feasible + exchange,0.25154180296269685,0.6250326651836976
+a_LOO_all,feasible spaced greedy,0.25664850723002325,0.6232201828694319
+a_LOO_all,greedy (unconstrained),0.2427464824526312,0.5250428419836952
+a_LOO_all,no sensors,0.5460677172197846,0.8598750410218363
+a_LOO_all,spaced greedy,0.2346300030805204,0.4197568035449961
+b_train_ride_test_corner,feasible + exchange,0.31491633483668013,0.35852823150862745
+b_train_ride_test_corner,feasible spaced greedy,0.37529533562072664,0.40705655723448264
+b_train_ride_test_corner,greedy (unconstrained),0.2525624520912099,0.29578731220837684
+b_train_ride_test_corner,no sensors,0.4472587443970641,0.4744185269926942
+b_train_ride_test_corner,spaced greedy,0.20651491289273782,0.2625513127755085
