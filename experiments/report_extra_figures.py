@@ -63,8 +63,8 @@ def mapping_figure(out):
     nn = f(xs)[cKDTree(xs[:, None]).query(xt[:, None])[1]]
     iv = idw(xs[:, None], f(xs), xt[:, None])[0]
     ax.plot(xt, f(xt), color=TRUE_C, lw=1.0, label="true Cp")
-    ax.plot(xt, nn, color=NN_C, lw=1.2, label="nearest neighbour (steps)")
-    ax.plot(xt, iv, color=IDW_C, lw=1.2, ls="--", label="IDW k = 4 (smoothed)")
+    ax.plot(xt, nn, color=NN_C, lw=1.2, label="nearest neighbour")
+    ax.plot(xt, iv, color=IDW_C, lw=1.2, ls="--", label="IDW, k = 4")
     ax.plot(xs, f(xs), "o", ms=2.5, c="0.5")
     ax.text(0.98, 0.62, f"peak Cp\ntrue {f(xt).min():.2f}\nNN {nn.min():.2f}\nIDW {iv.min():.2f}",
             transform=ax.transAxes, ha="right", va="top", fontsize=6.0)
@@ -73,7 +73,7 @@ def mapping_figure(out):
     ax.set_ylabel("Cp", fontsize=7)
     ax.invert_yaxis()
     ax.tick_params(labelsize=6.5)
-    ax.legend(fontsize=5.8, frameon=False, loc="upper left")
+    ax.legend(fontsize=5.8, frameon=False, loc="upper left", handlelength=1.4, borderaxespad=0.2)
 
     # (c) thin plate: the other face is within the 4 nearest points
     ax = axs[2]
