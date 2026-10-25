@@ -32,6 +32,37 @@ def box(ax, y, h, title, body, edge, bg):
     ax.text(0.08, y + h - 0.06, body, fontsize=6.1, color=INK, va="top", wrap=True)
 
 
+SHORT = [
+    ("CFD cases", "Fluent on M3;\none surface file\nper case (Cp at\n~145,000 points)"),
+    ("Map onto one\npoint set", "each case's mesh\nmapped onto one\nreference mesh;\nleft side"),
+    ("Snapshot\nmatrix X", "one column per\ncase (never\naveraged); subtract\nthe mean field"),
+    ("POD by SVD", "keep the r modes\nthat carry 90 %\nof the variation"),
+    ("Choose k\nsensors", "greedy D-optimal;\n≥ 0.05 m apart;\naway from edges\nand CAD zones"),
+    ("Validate", "hide a case; rebuild\nfrom k readings,\nx̂ = x̄ + U_r a; RMS\nvs CFD and baseline"),
+]
+
+
+def horizontal(out):
+    """Same workflow as one row across the page (two-column report, full width)."""
+    fig = plt.figure(figsize=(7.1, 1.0))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_axis_off()
+    n, gap = len(SHORT), 0.022
+    w = (0.995 - 0.005 - gap * (n - 1)) / n
+    for i, (t, b) in enumerate(SHORT):
+        x = 0.005 + i * (w + gap)
+        last = i == n - 1
+        ax.add_patch(FancyBboxPatch((x, 0.04), w, 0.92, boxstyle="round,pad=0.004,rounding_size=0.02",
+                                    fc=ORANGE_BG if last else BLUE_BG, ec=ORANGE if last else BLUE, lw=1.1))
+        ax.text(x + 0.008, 0.9, t, fontsize=7, weight="bold", color=INK, va="top", linespacing=1.05)
+        ax.text(x + 0.008, 0.9 - (0.33 if "\n" in t else 0.2), b, fontsize=5.9, color=INK, va="top",
+                linespacing=1.15)
+        if not last:
+            ax.annotate("", xy=(x + w + gap - 0.002, 0.5), xytext=(x + w + 0.002, 0.5),
+                        arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.0))
+    fig.savefig(out / "fig_pipeline_row.png", dpi=300)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default="results/figures")
@@ -56,6 +87,7 @@ def main():
     for txt in ax.texts:                        # wrap long lines inside the boxes
         txt._get_wrap_line_width = lambda: 0.84 * fig.bbox.width
     fig.savefig(out / "fig1_pipeline_col.png", dpi=300)
+    horizontal(out)
 
 
 if __name__ == "__main__":
