@@ -17,7 +17,7 @@ The reusable maths lives in the `sensor_opt` package (`compute_pod`, `greedy_sen
 Python 3.12 is used for development.
 
 ```
-python -m pip install numpy scipy pandas matplotlib plotly
+python -m pip install numpy scipy pandas matplotlib plotly scikit-learn
 python -m pip install pytest pdoc        # for tests and API docs
 ```
 
