@@ -1,0 +1,24 @@
+122 cases (100 straight, 22 cornering), 141679 points with y <= 0; ensemble aligned by nearest neighbour
+
+4a  Gram vs SVD on the split-B training matrix (141679 x 100)
+               quantity     value
+                  modes        14
+max_principal_angle_rad 2.094e-14
+max_principal_angle_deg   1.2e-12
+            rms_k24_svd    0.2184
+           rms_k24_gram    0.2184
+               rms_diff 8.327e-17
+         sensor_overlap        20
+             time_svd_s     2.506
+            time_gram_s     0.414
+        peak_mem_svd_MB     324.7
+       peak_mem_gram_MB     216.3
+   relative singular-value error: max 3.67e-14 over the 99 non-null indices (index 100 is the null direction of the centred matrix)
+
+4b  float32 vs float64, split B, k = 20 (sensor overlap 20 of 20)
+  dtype  modes  mean_rms_k24  X_nbytes  time_s
+float64     14        0.2184 1.383e+08   1.748
+float32     14        0.2184 6.914e+07   2.586
+   part 4 run time: 13.1 s
+
+Total run time: 16.3 s

@@ -1,0 +1,14 @@
+122 cases (100 straight, 22 cornering), 141679 points with y <= 0; ensemble aligned by nearest neighbour
+
+8  input resolution, split B, k = 20, r = 14 (3 seeds; POD time = best of 3 on 100 training cases)
+ candidates  mean_rms_k24   rms_sd  greedy_time_s  min_spacing_mm  pod_time_s  gram_flops
+       5000        0.2263  0.01523         0.0198           50.68     0.00836       1e+08
+      10000         0.225  0.01109        0.05175           50.76     0.01632       2e+08
+      20000        0.2185 0.003214         0.1177            50.2     0.03097       4e+08
+      40000        0.2264 0.004167         0.3499            50.2      0.1253       8e+08
+      80000        0.2222   0.0018         0.5311            50.1      0.1476     1.6e+09
+     141679        0.2184        0          1.331           50.58      0.3091   2.834e+09
+   log-log slope of POD (Gram) time against point count: 1.10 (expected about 1)
+   part 8 run time: 18.9 s
+
+Total run time: 21.7 s

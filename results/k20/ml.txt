@@ -1,0 +1,53 @@
+NOTE: the ensemble was aligned onto the reference mesh by nearest neighbour (not IDW).
+122 cases (100 straight, 22 cornering), 141679 points with y <= 0
+
+Summary (RMS Cp error over all points):
+                test  k    model  mean_rms  worst_rms    modes  mlp_n_iter_median  convergence_warnings
+b_straight_to_corner 10 baseline   0.44726    0.47442 14.00000                NaN                     0
+b_straight_to_corner 10    lstsq   0.34616    0.36108 14.00000                NaN                     0
+b_straight_to_corner 10   linreg   0.30319    0.31796 14.00000                NaN                     0
+b_straight_to_corner 10      mlp   0.32750    0.34889 14.00000          122.00000                     0
+b_straight_to_corner 20 baseline   0.44726    0.47442 14.00000                NaN                     0
+b_straight_to_corner 20    lstsq   0.21836    0.26495 14.00000                NaN                     0
+b_straight_to_corner 20   linreg   0.21055    0.26659 14.00000                NaN                     0
+b_straight_to_corner 20      mlp   0.24472    0.30042 14.00000          288.00000                     0
+               a_loo 10 baseline   0.54607    0.85988 13.00000                NaN                     0
+               a_loo 10    lstsq   0.41090    0.80848 13.00000                NaN                     0
+               a_loo 10   linreg   0.28485    0.58826 13.00000                NaN                     0
+               a_loo 10      mlp   0.26419    0.60338 13.00000          201.50000                     0
+               a_loo 20 baseline   0.54607    0.85988 13.00000                NaN                     0
+               a_loo 20    lstsq   0.24464    0.49782 13.00000                NaN                     0
+               a_loo 20   linreg   0.23876    0.69875 13.00000                NaN                     0
+               a_loo 20      mlp   0.24094    0.44786 13.00000          205.50000                     0
+
+MLP sensitivity, test (b):
+ k                              model  mean_rms  worst_rms  n_iter  convergence_warnings
+10     mlp h=(20,) alpha=0.001 seed=0   0.48072    0.52728     553                     0
+10     mlp h=(20,) alpha=0.001 seed=1   0.38091    0.40884     191                     0
+10     mlp h=(20,) alpha=0.001 seed=2   0.30530    0.35397     166                     0
+10     mlp h=(20,) alpha=0.001 seed=3   0.27789    0.29038     105                     0
+10     mlp h=(20,) alpha=0.001 seed=4   0.30141    0.33031     172                     0
+10    mlp h=(20,) alpha=0.001 seed=42   0.32750    0.34889     122                     0
+10      mlp h=(20,) alpha=0.1 seed=42   0.32743    0.34804     121                     0
+10 mlp h=(30, 15) alpha=0.001 seed=42   0.28870    0.33494     113                     0
+10   mlp h=(30, 15) alpha=0.1 seed=42   0.27923    0.37324      96                     0
+10     mlp h=(5,) alpha=0.001 seed=42   0.35602    0.38013      88                     0
+10       mlp h=(5,) alpha=0.1 seed=42   0.35610    0.38007      88                     0
+20     mlp h=(20,) alpha=0.001 seed=0   0.23753    0.31547     213                     0
+20     mlp h=(20,) alpha=0.001 seed=1   0.22384    0.32036     291                     0
+20     mlp h=(20,) alpha=0.001 seed=2   0.23570    0.31890     148                     0
+20     mlp h=(20,) alpha=0.001 seed=3   0.23944    0.32357     182                     0
+20     mlp h=(20,) alpha=0.001 seed=4   0.23896    0.32916     281                     0
+20    mlp h=(20,) alpha=0.001 seed=42   0.24472    0.30042     288                     0
+20      mlp h=(20,) alpha=0.1 seed=42   0.23873    0.30511     269                     0
+20 mlp h=(30, 15) alpha=0.001 seed=42   0.26536    0.39096     205                     0
+20   mlp h=(30, 15) alpha=0.1 seed=42   0.27247    0.38911     201                     0
+20     mlp h=(5,) alpha=0.001 seed=42   0.34147    0.40390     108                     0
+20       mlp h=(5,) alpha=0.1 seed=42   0.34122    0.40379     108                     0
+
+Spread across random_state 0-4, (20,) model, alpha 0.001 (mean RMS per seed):
+ k    mean     std     min     max
+10 0.34924 0.08307 0.27789 0.48072
+20 0.23509 0.00646 0.22384 0.23944
+
+Total run time: 1003.6 s

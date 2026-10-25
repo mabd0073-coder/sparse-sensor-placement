@@ -1,0 +1,56 @@
+Arrays in npz:
+  Cp_matrix                      shape (283700, 122) dtype float64
+  x                              shape (283700,) dtype float64
+  y                              shape (283700,) dtype float64
+  z                              shape (283700,) dtype float64
+  nodenumber                     shape (283700,) dtype int64
+Using 'Cp_matrix' as the Cp matrix
+
+Params columns: ['sweep', 'folder', 'is_mirrored', 'FRH', 'RRH', 'R', 'S', 'CR', 'Y', 'V'] (122 rows)
+   sweep                                                 folder  is_mirrored    FRH   RRH    R    S   CR    Y      V
+0  50.28  100_FRH55.00_RRH55.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  55.00  55.0  0.0  0.0  0.0  0.0  19.44
+1  50.28   10_FRH15.00_RRH55.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  15.00  55.0  0.0  0.0  0.0  0.0  19.44
+2  50.28   11_FRH19.44_RRH15.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  19.44  15.0  0.0  0.0  0.0  0.0  19.44
+     sweep                                                folder  is_mirrored   FRH   RRH    R      S   CR    Y      V
+119  50.34   6_FRH31.50_RRH32.00_R0.00_S21.38_CR6.50_Y0.00_V8.62        False  31.5  32.0  0.0  21.38  6.5  0.0   8.62
+120  50.34   7_FRH31.50_RRH32.00_R0.00_S18.75_CR7.00_Y0.00_V9.25        False  31.5  32.0  0.0  18.75  7.0  0.0   9.25
+121  50.34  9_FRH31.50_RRH32.00_R0.00_S13.50_CR8.00_Y0.00_V10.50        False  31.5  32.0  0.0  13.50  8.0  0.0  10.50
+Coordinate extent 1.4 -> treating as m; min_dist = 0.05
+Keeping y <= 0: 141679 of 283700 points
+Cornering = column 'CR' < 400 m: 22 cornering, 100 ride-height
+100 ride-height cases, 22 cornering cases, 122 total
+NOTE: aligned by nearest-neighbour (not IDW); straight and cornering cases are different set-ups.
+
+                    test  sensors              method  mean_rms  worst_rms  n_cases  modes_median
+               a_LOO_all       10              greedy   0.41256    0.84650      122            13
+               a_LOO_all       10           greedy_md   0.41090    0.80848      122            13
+               a_LOO_all       10                  qr   0.41256    0.84650      122            13
+               a_LOO_all       10              random   0.60480    0.94323      122            13
+               a_LOO_all       10 mean_field_baseline   0.54607    0.85988      122            13
+b_train_ride_test_corner       10              greedy   0.38141    0.45883       22            14
+b_train_ride_test_corner       10           greedy_md   0.34616    0.36108       22            14
+b_train_ride_test_corner       10                  qr   0.38141    0.45883       22            14
+b_train_ride_test_corner       10              random   0.81323    1.05165       22            14
+b_train_ride_test_corner       10 mean_field_baseline   0.44726    0.47442       22            14
+       c_LOO_corner_only       10              greedy   0.05484    0.09135       22             3
+       c_LOO_corner_only       10           greedy_md   0.05097    0.09668       22             3
+       c_LOO_corner_only       10                  qr   0.06835    0.13053       22             3
+       c_LOO_corner_only       10              random   0.04775    0.09415       22             3
+       c_LOO_corner_only       10 mean_field_baseline   0.09403    0.26825       22             3
+               a_LOO_all       20              greedy   0.24762    0.56691      122            13
+               a_LOO_all       20           greedy_md   0.24464    0.49782      122            13
+               a_LOO_all       20                  qr   0.28371    0.73010      122            13
+               a_LOO_all       20              random   0.54521    0.97612      122            13
+               a_LOO_all       20 mean_field_baseline   0.54607    0.85988      122            13
+b_train_ride_test_corner       20              greedy   0.26584    0.33759       22            14
+b_train_ride_test_corner       20           greedy_md   0.21836    0.26495       22            14
+b_train_ride_test_corner       20                  qr   0.29563    0.38496       22            14
+b_train_ride_test_corner       20              random   0.82629    0.99192       22            14
+b_train_ride_test_corner       20 mean_field_baseline   0.44726    0.47442       22            14
+       c_LOO_corner_only       20              greedy   0.04904    0.09352       22             3
+       c_LOO_corner_only       20           greedy_md   0.04781    0.10411       22             3
+       c_LOO_corner_only       20                  qr   0.06798    0.13084       22             3
+       c_LOO_corner_only       20              random   0.04485    0.08228       22             3
+       c_LOO_corner_only       20 mean_field_baseline   0.09403    0.26825       22             3
+
+Saved results/k20/cornering_test_side_diffuser_ensemble_highres_NN.csv and .png

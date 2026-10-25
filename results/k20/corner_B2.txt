@@ -1,0 +1,23 @@
+Arrays in npz:
+  Cp_matrix                      shape (143709, 122) dtype float64
+  x                              shape (143709,) dtype float64
+  y                              shape (143709,) dtype float64
+  z                              shape (143709,) dtype float64
+  nodenumber                     shape (143709,) dtype int64
+Using 'Cp_matrix' as the Cp matrix
+
+Params columns: ['sweep', 'folder', 'is_mirrored', 'FRH', 'RRH', 'R', 'S', 'CR', 'Y', 'V'] (122 rows)
+   sweep                                                 folder  is_mirrored    FRH   RRH    R    S   CR    Y      V
+0  50.28  100_FRH55.00_RRH55.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  55.00  55.0  0.0  0.0  0.0  0.0  19.44
+1  50.28   10_FRH15.00_RRH55.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  15.00  55.0  0.0  0.0  0.0  0.0  19.44
+2  50.28   11_FRH19.44_RRH15.00_R0.00_S0.00_CR0.00_Y0.00_V19.44        False  19.44  15.0  0.0  0.0  0.0  0.0  19.44
+     sweep                                                folder  is_mirrored   FRH   RRH    R      S   CR    Y      V
+119  50.34   6_FRH31.50_RRH32.00_R0.00_S21.38_CR6.50_Y0.00_V8.62        False  31.5  32.0  0.0  21.38  6.5  0.0   8.62
+120  50.34   7_FRH31.50_RRH32.00_R0.00_S18.75_CR7.00_Y0.00_V9.25        False  31.5  32.0  0.0  18.75  7.0  0.0   9.25
+121  50.34  9_FRH31.50_RRH32.00_R0.00_S13.50_CR8.00_Y0.00_V10.50        False  31.5  32.0  0.0  13.50  8.0  0.0  10.50
+Coordinate extent 0.9 -> treating as m; min_dist = 0.05
+Keeping y <= 0: 143709 of 143709 points
+Cornering = column 'CR' < 400 m: 22 cornering, 100 ride-height
+100 ride-height cases, 22 cornering cases, 122 total
+NOTE: aligned by nearest-neighbour (not IDW); straight and cornering cases are different set-ups.
+

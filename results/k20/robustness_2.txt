@@ -1,0 +1,17 @@
+122 cases (100 straight, 22 cornering), 141679 points with y <= 0; ensemble aligned by nearest neighbour
+
+2a  single-sensor dropout (means over test cases; worst = largest single-dropout RMS)
+split  k  rms_all  rms_drop_mean  worst_point  x_mm   y_mm  z_mm  worst_rms worst_case
+    B 10   0.3462         0.3611        74232 667.8   -661 62.81     0.4073         25
+    B 20   0.2184         0.2294        95613 266.3 -319.9 109.4     0.3613          5
+  LOO 10   0.4109         0.4279         2397   704 -700.7 34.73     0.9037         41
+  LOO 20   0.2446         0.2562        41826 710.3 -642.1 42.14      1.129         22
+
+2b  unsupported-input flag (threshold = 95th pct of straight LOO residuals)
+ k  threshold  corner_flagged  straight_flagged  spearman_resid_vs_rms  modes
+20     0.4208               0              0.05                 0.6911     14
+32     0.4131               0              0.05                 0.6394     14
+40     0.4123               0              0.05                 0.6512     14
+   part 2 run time: 1175.9 s
+
+Total run time: 1179.4 s
