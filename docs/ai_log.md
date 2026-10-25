@@ -32,3 +32,4 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 Added tests/test_feasible_layout.py (greedy keeps to the allowed mask and min_dist; exchange never lowers log det).
 - 2026-10-25 README: Sensor layout section (rebuild and 3-D view commands); dedup ensemble (A0) withdrawn. Added report/README.md placeholder for the final PDF.
 - 2026-10-25 Regenerated docs/test_report.txt (22 passed) and docs/html.
+- 2026-10-25 Added experiments/ml_reconstruction.py (POD coefficients from sensor readings: mean field, lstsq, linear regression, MLP per MMA3001 Notebook 5.4; LOO and straight-to-cornering at k = 10, 24; MLP sensitivity); scikit-learn added to README install.
