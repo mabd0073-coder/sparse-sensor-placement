@@ -34,3 +34,5 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 Regenerated docs/test_report.txt (22 passed) and docs/html.
 - 2026-10-25 Added experiments/ml_reconstruction.py (POD coefficients from sensor readings: mean field, lstsq, linear regression, MLP per MMA3001 Notebook 5.4; LOO and straight-to-cornering at k = 10, 24; MLP sensitivity); scikit-learn added to README install.
 - 2026-10-25 Ran ml_reconstruction.py (151 s): results/ml_reconstruction*.{csv,png,txt}, results/ml_sensitivity.csv, results/ml_loss_curve.png.
+- 2026-10-25 Added experiments/robustness.py (part 2 dropout and residual flag, part 3 noise propagation, part 4 Gram/SVD and float32, part 8 input resolution) and tests/test_robustness.py.
+- 2026-10-25 Ran robustness.py --part all (832 s): results/robustness_{2,3,4,8}.{csv,png} and results/robustness.txt.
