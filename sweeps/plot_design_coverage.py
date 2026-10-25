@@ -29,6 +29,33 @@ def sc(ax, d, x, y, col, m, lab, s=24):
     ax.scatter(d[x], d[y], c=col, marker=m, s=s, label=lab, edgecolors="white", linewidths=0.6, zorder=3)
 
 
+def simple(team, c1, tc, s1, ts, G, out, column):
+    if column:
+        fig, ax = plt.subplots(2, 1, figsize=(3.45, 4.6), gridspec_kw=dict(hspace=1.15))
+        fs, tfs = 6.5, 7.5
+    else:
+        fig, ax = plt.subplots(1, 2, figsize=(7.6, 3.1), gridspec_kw=dict(wspace=0.28))
+        fs, tfs = 7.2, 8.8
+    a = ax[0]
+    a.scatter(team.cr, np.full(len(team), 31.5), c=OLD, s=22, label="old: sweep 50.34 (29 cases)", zorder=2)
+    sc(a, c1, "cr", "frh", B1, "o", "new: cornering batch 1 (32)")
+    sc(a, tc, "cr", "frh", TE, "^", "new: held-out test (8)", 40)
+    a.set(xlabel="corner radius [m]", ylabel="front ride height [mm]", ylim=(8, 62))
+    a.set_title("(a) Cornering: the old sweep is one line;\nthe new cases fill the range", fontsize=tfs, loc="left", color=INK)
+    a.legend(frameon=False, fontsize=fs, loc="upper center", ncol=1, bbox_to_anchor=(0.5, -0.3 if column else -0.2))
+    style(a)
+    a = ax[1]
+    a.scatter(G[:, 0], G[:, 1], c=OLD, marker="+", s=26, label="old: sweep 50.28 grid (100)", zorder=2)
+    sc(a, s1, "frh", "rrh", B1, "o", "new: straight-line batch 1 (32)")
+    sc(a, ts, "frh", "rrh", TE, "^", "new: held-out test (8)", 40)
+    a.set(xlabel="front ride height [mm]", ylabel="rear ride height [mm]", xlim=(11, 59), ylim=(11, 59))
+    a.set_title("(b) Straight line: the new cases also\nvary roll and yaw (not shown)", fontsize=tfs, loc="left", color=INK)
+    a.legend(frameon=False, fontsize=fs, loc="upper center", ncol=1, bbox_to_anchor=(0.5, -0.3 if column else -0.2))
+    style(a)
+    fig.savefig(out / ("design_simple_col.png" if column else "design_simple.png"), dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     pa = argparse.ArgumentParser()
     pa.add_argument("--out", default="results/figures")
@@ -45,26 +72,9 @@ def main():
     g = np.linspace(15, 55, 10)
     G = np.array([(a, b) for a in g for b in g])
 
-    # ---- simple two-panel version --------------------------------------------
-    fig, ax = plt.subplots(1, 2, figsize=(7.6, 3.1), gridspec_kw=dict(wspace=0.28))
-    a = ax[0]
-    a.scatter(team.cr, np.full(len(team), 31.5), c=OLD, s=22, label="old: sweep 50.34 (29 cases)", zorder=2)
-    sc(a, c1, "cr", "frh", B1, "o", "new: cornering batch 1 (32)")
-    sc(a, tc, "cr", "frh", TE, "^", "new: held-out test (8)", 40)
-    a.set(xlabel="corner radius [m]", ylabel="front ride height [mm]", ylim=(8, 62))
-    a.set_title("(a) Cornering: the old sweep is one line;\nthe new cases fill the range", fontsize=8.8, loc="left", color=INK)
-    a.legend(frameon=False, fontsize=7.2, loc="upper center", ncol=1, bbox_to_anchor=(0.5, -0.2))
-    style(a)
-    a = ax[1]
-    a.scatter(G[:, 0], G[:, 1], c=OLD, marker="+", s=26, label="old: sweep 50.28 grid (100)", zorder=2)
-    sc(a, s1, "frh", "rrh", B1, "o", "new: straight-line batch 1 (32)")
-    sc(a, ts, "frh", "rrh", TE, "^", "new: held-out test (8)", 40)
-    a.set(xlabel="front ride height [mm]", ylabel="rear ride height [mm]", xlim=(11, 59), ylim=(11, 59))
-    a.set_title("(b) Straight line: the new cases also\nvary roll and yaw (not shown)", fontsize=8.8, loc="left", color=INK)
-    a.legend(frameon=False, fontsize=7.2, loc="upper center", ncol=1, bbox_to_anchor=(0.5, -0.2))
-    style(a)
-    fig.savefig(out / "design_simple.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
+    # ---- simple two-panel version (wide, and stacked for one journal column) ---
+    for column in (False, True):
+        simple(team, c1, tc, s1, ts, G, out, column)
 
     # ---- full six-panel version (appendix) -------------------------------------
     fig, ax = plt.subplots(2, 3, figsize=(8.8, 5.6))

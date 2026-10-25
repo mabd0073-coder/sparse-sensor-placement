@@ -18,6 +18,7 @@ p.add_argument("whole_car_csv")
 p.add_argument("left_only_csv")
 p.add_argument("-o", "--out", default="results/fig_cornering.png")
 p.add_argument("--sensors", type=int, default=24)
+p.add_argument("--column", action="store_true", help="stack panels for one journal column")
 a = p.parse_args()
 
 sets = [(pd.read_csv(a.whole_car_csv), "Ensemble B1 (whole-car mesh, left half)", "#2a6fdb"),
@@ -28,7 +29,10 @@ tests = [("a_LOO_all", "(a) leave-one-out, all 122"),
          ("b_train_ride_test_corner", "(b) train straight, test 22 cornering"),
          ("c_LOO_corner_only", "(c) leave-one-out, 22 cornering")]
 YMAX = 0.9
-fig, axs = plt.subplots(1, 3, figsize=(7.4, 2.7), sharey=True)
+if a.column:
+    fig, axs = plt.subplots(3, 1, figsize=(3.45, 4.5), sharex=True)
+else:
+    fig, axs = plt.subplots(1, 3, figsize=(7.4, 2.7), sharey=True)
 for ax, (t, ttl) in zip(axs, tests):
     x = np.arange(len(methods))
     modes = []
@@ -46,8 +50,11 @@ for ax, (t, ttl) in zip(axs, tests):
     ax.set_title(f"{ttl}\nmodes kept: B1 {modes[0]}, B2 {modes[1]}", fontsize=7.5)
     ax.set_ylim(0, YMAX)
     ax.tick_params(labelsize=7)
-axs[0].set_ylabel(f"RMS error in Cp, {a.sensors} sensors", fontsize=7.5)
-fig.legend(*axs[0].get_legend_handles_labels(), loc="lower center", ncol=2, fontsize=7, frameon=False)
-fig.tight_layout(rect=(0, 0.08, 1, 1))
+if a.column:
+    fig.supylabel(f"RMS error in Cp, {a.sensors} sensors", fontsize=7.5)
+else:
+    axs[0].set_ylabel(f"RMS error in Cp, {a.sensors} sensors", fontsize=7.5)
+fig.legend(*axs[0].get_legend_handles_labels(), loc="lower center", ncol=1 if a.column else 2, fontsize=6.5 if a.column else 7, frameon=False)
+fig.tight_layout(rect=(0, 0.05 if a.column else 0.08, 1, 1))
 fig.savefig(a.out, dpi=220)
 print("saved", a.out)

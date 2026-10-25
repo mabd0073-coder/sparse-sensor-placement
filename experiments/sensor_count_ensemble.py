@@ -89,10 +89,13 @@ def main():
     print(f"Saved {a.outdir}/sensor_count_{tag}.csv/.png")
 
 
-def plot(s, noise, out):
+def plot(s, noise, out, column=False):
     """Two-panel figure from the summary table (also usable on a saved CSV)."""
     from matplotlib.ticker import NullFormatter
-    fig, axs = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
+    if column:
+        fig, axs = plt.subplots(2, 1, figsize=(3.45, 3.6), sharex=True)
+    else:
+        fig, axs = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
     for ax, t, ttl in zip(axs, ("a_LOO_all", "b_train_ride_test_corner"),
                           ("(a) leave-one-out, all 122 cases", "(b) train on straight, test on cornering")):
         d = s[s.test == t]
@@ -109,9 +112,15 @@ def plot(s, noise, out):
         ax.set_xlabel("number of sensors k (spaced greedy)", fontsize=8)
         ax.set_title(ttl, fontsize=8)
         ax.tick_params(labelsize=7.5)
-    axs[0].set_ylabel("mean RMS error in Cp", fontsize=8)
-    axs[0].set_ylim(0, 0.6)
-    axs[0].legend(fontsize=7, frameon=False, loc="center right")
+    for ax in (axs if column else axs[:1]):
+        ax.set_ylabel("mean RMS error in Cp", fontsize=8)
+        ax.set_ylim(0, 0.72 if column else 0.6)
+    if column:
+        axs[0].set_xlabel("")
+    if column:
+        axs[1].legend(fontsize=6.5, frameon=False, loc="upper right", bbox_to_anchor=(1.0, 1.04))
+    else:
+        axs[0].legend(fontsize=7, frameon=False, loc="center right")
     fig.tight_layout()
     fig.savefig(out, dpi=220)
 

@@ -96,9 +96,13 @@ def title(ax, text):
     ax.set_title(text, fontsize=8.8, loc="left", color=INK)
 
 
-def fig_physics(out):
-    fig = plt.figure(figsize=(8.2, 3.0))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1.25, 1.15, 0.95], wspace=0.42)
+def fig_physics(out, column=False):
+    if column:   # one journal column: panels stacked
+        fig = plt.figure(figsize=(3.45, 5.5))
+        gs = fig.add_gridspec(3, 1, height_ratios=[0.85, 1, 1.05], hspace=0.95)
+    else:
+        fig = plt.figure(figsize=(8.2, 3.0))
+        gs = fig.add_gridspec(1, 3, width_ratios=[1.25, 1.15, 0.95], wspace=0.42)
 
     # (a) geometry with speed arrows (arrow length proportional to air speed)
     ax = fig.add_subplot(gs[0])
@@ -114,13 +118,19 @@ def fig_physics(out):
         ax.annotate("", xy=(xi + 0.11 * v, 12), xytext=(xi, 12),
                     arrowprops=dict(arrowstyle="-|>", color=BLUE, lw=1.8, mutation_scale=10))
     ax.text(0.30, 61, "car floor", fontsize=8, color=INK, ha="center")
-    ax.text(0.27, 26, "narrow gap:\nfast air,\nlow pressure", fontsize=7, color=INK, ha="center")
-    ax.text(0.73, 26, "gap opens:\nair slows,\npressure\nrecovers", fontsize=7, color=INK, ha="center")
+    if column:
+        ax.text(0.27, 22, "narrow gap: fast air,\nlow pressure", fontsize=6.3, color=INK, ha="center")
+        ax.text(0.72, 22, "gap opens: air\nslows, pressure\nrecovers", fontsize=6.3, color=INK, ha="center")
+    else:
+        ax.text(0.27, 26, "narrow gap:\nfast air,\nlow pressure", fontsize=7, color=INK, ha="center")
+        ax.text(0.73, 26, "gap opens:\nair slows,\npressure\nrecovers", fontsize=7, color=INK, ha="center")
     ax.text(0.45, -15, "ground", fontsize=7.5, color="#55554f", ha="center")
     ax.text(0.0, 82, "air flow →", fontsize=8, color=BLUE)
     ax.set(xlim=(-0.02, 0.92), ylim=(-19, 90), xlabel="distance along floor, front → rear [m]",
            ylabel="gap to ground [mm]")
     title(ax, "(a) Air gap under the floor\narrows ∝ air speed; not to scale")
+    if column:
+        ax.set_xlabel("distance along floor [m]")
     style(ax)
 
     # (b) Cp along the floor for different attitudes
@@ -132,10 +142,12 @@ def fig_physics(out):
     for (f, r), lab, c, ls in cases:
         ax.plot(x, cp(f, r), color=c, lw=2, ls=ls, label=lab)
     ax.axhline(0, color="#8a8980", lw=0.8)
-    ax.text(0.9, 0.1, "Cp = 0: same as\nsurrounding air", fontsize=6.8, ha="right", color="#55554f")
+    if not column:
+        ax.text(0.9, 0.1, "Cp = 0: same as\nsurrounding air", fontsize=6.8, ha="right", color="#55554f")
     ax.set(xlabel="distance along floor [m]", ylabel="pressure coefficient Cp")
     title(ax, "(b) Pressure along the floor\nmore negative = more suction")
-    ax.legend(frameon=False, fontsize=6.6, loc="lower right", title="FRH/RRH [mm]", title_fontsize=6.6, handlelength=1.6)
+    ax.legend(frameon=False, fontsize=5.6 if column else 6.6, loc="lower right", title="FRH/RRH [mm]",
+              title_fontsize=5.6 if column else 6.6, handlelength=1.6, borderaxespad=0.1)
     style(ax)
 
     # (c) aeromap: mean suction over FRH x RRH, with the 10 x 10 sweep grid
@@ -156,11 +168,11 @@ def fig_physics(out):
     style(ax)
     ax.grid(False)
 
-    fig.savefig(out / "fig_diffuser_model.png", dpi=220, bbox_inches="tight")
+    fig.savefig(out / ("fig_diffuser_model_col.png" if column else "fig_diffuser_model.png"), dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
-def fig_method(out):
+def fig_method(out, column=False):
     g = np.linspace(15, 55, 10)
     cases = [(a, b) for a in g for b in g]
     X = np.column_stack([cp(a, b) for a, b in cases])
@@ -177,8 +189,13 @@ def fig_method(out):
     rms_rec = np.sqrt(np.mean((rec - truth) ** 2))
     rms_base = np.sqrt(np.mean((mean[:, 0] - truth) ** 2))
 
-    fig = plt.figure(figsize=(7.6, 5.6))
-    gs = fig.add_gridspec(2, 2, wspace=0.34, hspace=0.48)
+    if column:   # one journal column: 2 x 2 with smaller type
+        plt.rcParams.update({"font.size": 6.5})
+        fig = plt.figure(figsize=(3.45, 3.9))
+        gs = fig.add_gridspec(2, 2, wspace=0.55, hspace=0.75)
+    else:
+        fig = plt.figure(figsize=(7.6, 5.6))
+        gs = fig.add_gridspec(2, 2, wspace=0.34, hspace=0.48)
 
     ax = fig.add_subplot(gs[0, 0])
     for j in range(X.shape[1]):
@@ -220,6 +237,29 @@ def fig_method(out):
     ax.legend(frameon=False, fontsize=7.0, loc="lower right")
     style(ax)
 
+    if column:
+        short = ["(a) 100 toy cases", "(b) as a matrix X", "(c) SVD patterns", "(d) rebuild unseen case"]
+        data_axes = [ax for ax in fig.axes if ax.get_label() != "<colorbar>"]
+        for ax, t in zip(data_axes, short):
+            ax.set_title(t, loc="left")
+        leg = data_axes[3].get_legend()
+        h, l = data_axes[3].get_legend_handles_labels()
+        leg.remove()
+        fig.legend(h, l, loc="lower center", ncol=2, frameon=False, fontsize=5.2, bbox_to_anchor=(0.5, -0.06))
+        data_axes[0].get_legend().remove()
+        for ax in fig.axes:
+            ax.title.set_fontsize(6.6)
+            ax.tick_params(labelsize=5.8)
+            ax.xaxis.label.set_fontsize(6)
+            ax.yaxis.label.set_fontsize(6)
+            leg = ax.get_legend()
+            if leg:
+                for t in leg.get_texts():
+                    t.set_fontsize(5.2)
+        fig.savefig(out / "fig_method_toy_col.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        plt.rcParams.update({"font.size": 8.5})
+        return
     fig.savefig(out / "fig_method_toy.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
@@ -253,6 +293,8 @@ def main():
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8.5})
     fig_physics(out)
     fig_method(out)
+    fig_physics(out, column=True)
+    fig_method(out, column=True)
 
 
 if __name__ == "__main__":
