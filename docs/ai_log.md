@@ -28,3 +28,4 @@ Changes made with Claude Code (Claude Opus 5.5), one line per change.
 - 2026-10-25 Regenerated docs/html (min_dist docs).
 - 2026-10-25 README: data files, dedup warning, experiments, cluster scripts and new tests.
 - 2026-10-25 Merged PR #1 (feat/final-analysis) and docs/report-figures into main; regenerated docs/test_report.txt (20 passed) and docs/html on main.
+- 2026-10-25 Merged docs/report-figures into main (feasible_layout.py, show_layout.py, pipeline_figure.py, one-column figures, results/feasible_layout*); reproduced results/feasible_layout.csv byte for byte.
