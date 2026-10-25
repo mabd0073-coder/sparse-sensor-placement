@@ -94,11 +94,15 @@ def corner_mask(params, M, a):
 
 # ---------------------------------------------------------------- method
 def pod(Xtr, var):
+    """POD via the small M x M Gram matrix (same modes as thin SVD, far faster)."""
     mean = Xtr.mean(axis=1, keepdims=True)
-    U, s, _ = np.linalg.svd(Xtr - mean, full_matrices=False)
-    r = int(np.searchsorted(np.cumsum(s ** 2) / np.sum(s ** 2), var) + 1)
-    r = min(r, U.shape[1])
-    return mean, U[:, :r], r
+    Xc = Xtr - mean
+    w, V = np.linalg.eigh(Xc.T @ Xc)
+    w, V = np.clip(w[::-1], 0, None), V[:, ::-1]
+    r = int(np.searchsorted(np.cumsum(w) / np.sum(w), var) + 1)
+    r = min(r, int((w > 1e-12 * w[0]).sum()))
+    U = (Xc @ V[:, :r]) / np.sqrt(w[:r])
+    return mean, U, r
 
 
 def greedy(U, k, coords=None, min_dist=0.0, eps=1e-10):
