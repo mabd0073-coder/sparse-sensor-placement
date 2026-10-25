@@ -21,3 +21,36 @@ Cornering = column 'CR' < 400 m: 22 cornering, 100 ride-height
 100 ride-height cases, 22 cornering cases, 122 total
 NOTE: aligned by nearest-neighbour (not IDW); straight and cornering cases are different set-ups.
 
+                    test  sensors              method  mean_rms  worst_rms  n_cases  modes_median
+               a_LOO_all       10              greedy   0.30661    0.69479      122            27
+               a_LOO_all       10           greedy_md   0.25810    0.66447      122            27
+               a_LOO_all       10                  qr   0.30661    0.69479      122            27
+               a_LOO_all       10              random   0.25518    0.89428      122            27
+               a_LOO_all       10 mean_field_baseline   0.27630    0.71086      122            27
+b_train_ride_test_corner       10              greedy   0.25164    0.29821       22            25
+b_train_ride_test_corner       10           greedy_md   0.19129    0.23373       22            25
+b_train_ride_test_corner       10                  qr   0.25164    0.29821       22            25
+b_train_ride_test_corner       10              random   0.34008    0.40658       22            25
+b_train_ride_test_corner       10 mean_field_baseline   0.20811    0.25080       22            25
+       c_LOO_corner_only       10              greedy   0.10645    0.20304       22            14
+       c_LOO_corner_only       10           greedy_md   0.11748    0.19947       22            14
+       c_LOO_corner_only       10                  qr   0.10645    0.20304       22            14
+       c_LOO_corner_only       10              random   0.13397    0.30389       22            14
+       c_LOO_corner_only       10 mean_field_baseline   0.09111    0.18926       22            14
+               a_LOO_all       20              greedy   0.35365    0.56410      122            27
+               a_LOO_all       20           greedy_md   0.23215    0.58744      122            27
+               a_LOO_all       20                  qr   0.35365    0.56410      122            27
+               a_LOO_all       20              random   0.32562    2.98004      122            27
+               a_LOO_all       20 mean_field_baseline   0.27630    0.71086      122            27
+b_train_ride_test_corner       20              greedy   0.29500    0.47700       22            25
+b_train_ride_test_corner       20           greedy_md   0.19842    0.23598       22            25
+b_train_ride_test_corner       20                  qr   0.29500    0.47700       22            25
+b_train_ride_test_corner       20              random   0.83777    1.11758       22            25
+b_train_ride_test_corner       20 mean_field_baseline   0.20811    0.25080       22            25
+       c_LOO_corner_only       20              greedy   0.12906    0.27104       22            14
+       c_LOO_corner_only       20           greedy_md   0.11427    0.16024       22            14
+       c_LOO_corner_only       20                  qr   0.17552    0.31482       22            14
+       c_LOO_corner_only       20              random   0.18032    0.46022       22            14
+       c_LOO_corner_only       20 mean_field_baseline   0.09111    0.18926       22            14
+
+Saved results/k20/cornering_test_side_diffuser_ensemble.csv and .png
