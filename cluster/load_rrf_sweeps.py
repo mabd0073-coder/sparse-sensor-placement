@@ -13,6 +13,13 @@ Cases with no CSV (or an unreadable one) are skipped and listed.
 
 Data on the right side only is mirrored to the left (y -> -y) first.
 
+Replicates: the same design is often submitted to several sweep folders (the
+folder name, e.g. 15_FRH52.94_RRH42.00_..., is identical). Only the first copy
+found (in the order of --train) is kept, a test case that is also a training
+case is dropped, and the difference between each pair of copies is written to
+rrf_replicates.csv (a run-to-run repeatability check of the CFD). This keeps a
+held-out case from also being in the training set.
+
 Diagnostic: for each case, the fraction of target points whose 4 source
 neighbours differ by more than --spread-threshold (default 0.3) in Cp. A high
 fraction means the interpolation is averaging across a sharp feature or a
@@ -151,10 +158,36 @@ def main():
     if not sets["train"]:
         sys.exit("No complete training cases found; nothing saved.")
 
+    # the same design can be in several sweep folders: keep one copy, record the pairs
+    first, replicas = {}, []
+    for label in ("train", "test"):
+        kept = []
+        for item in sets[label]:
+            if item[1] in first:
+                replicas.append((first[item[1]], item, label))
+            else:
+                first[item[1]] = item
+                kept.append(item)
+        sets[label] = kept
+    if not sets["train"]:
+        sys.exit("No complete training cases found; nothing saved.")
+
     _, ref_name, target, _ = sets["train"][0]
     print("\nTarget points: left side of %s (%d points), k=%d IDW" % (ref_name, len(target), IDW_K))
 
     os.makedirs(a.out_dir, exist_ok=True)
+    if replicas:
+        print("\nReplicate copies of the same design (second copy dropped from the ensembles):")
+        rows = ["case,kept_sweep,replicate_sweep,replicate_in,rms_difference_Cp,max_abs_difference_Cp"]
+        for kept, dup, label in replicas:
+            c1 = build_ensemble([kept], target, a.spread_threshold)[0][:, 0]
+            c2 = build_ensemble([dup], target, a.spread_threshold)[0][:, 0]
+            d = c1 - c2
+            rms, mx = float(np.sqrt(np.mean(d ** 2))), float(np.abs(d).max())
+            print("  %s: %s vs %s: RMS difference %.4f, max %.3f" % (kept[1], kept[0], dup[0], rms, mx))
+            rows.append("%s,%s,%s,%s,%.5f,%.4f" % (kept[1], kept[0], dup[0], label, rms, mx))
+        with open(os.path.join(a.out_dir, "rrf_replicates.csv"), "w") as fh:
+            fh.write("\n".join(rows) + "\n")
     for label in ("train", "test"):
         if not sets[label]:
             print("No %s cases found; rrf_%s.npz not written." % (label, label))
