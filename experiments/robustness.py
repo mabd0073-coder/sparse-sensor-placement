@@ -28,6 +28,8 @@ import os
 import sys
 import time
 import tracemalloc
+
+K_MAIN = int(os.environ.get("SENSORS_K", 24))  # SENSORS_K: main sensor count (default one 24-channel DPMS box)
 import types
 
 import matplotlib
@@ -45,7 +47,7 @@ from cornering_test import corner_mask, greedy, pod  # noqa: E402
 VARIANCE = 0.90
 MIN_DIST = 0.05  # m
 SIGMA = 0.03     # iid reading noise in Cp (part 3)
-OUT = "results"
+OUT = os.environ.get("RESULTS_DIR", "results")
 
 INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 BLUE, ORANGE = "#2a78d6", "#eb6834"
@@ -161,8 +163,8 @@ def part2(D):
     folds = [("B", D.straight, D.corner)] + [("LOO", np.delete(np.arange(M), j), np.array([j])) for j in range(M)]
     for split, tr, te in folds:
         mean, U, r = pod(X[:, tr], VARIANCE)
-        s_all = greedy(U, 24, coords, MIN_DIST)  # greedy is sequential: first 10 = a 10-sensor run
-        for k in (10, 24):
+        s_all = greedy(U, K_MAIN, coords, MIN_DIST)  # greedy is sequential: first 10 = a 10-sensor run
+        for k in (10, K_MAIN):
             s = s_all[:k]
             for j in te:
                 x = X[:, j]
@@ -175,7 +177,7 @@ def part2(D):
                                  worst_z_mm=coords[s[i], 2] * 1e3, rms_worst_drop=drops[i]))
 
     # 2b: residual flag, threshold from LOO within the straight cases
-    ks = (24, 32, 40)
+    ks = (K_MAIN, 32, 40)
     for j in D.straight:
         tr = D.straight[D.straight != j]
         mean, U, r = pod(X[:, tr], VARIANCE)
@@ -218,15 +220,15 @@ def part2(D):
     show("2b  unsupported-input flag (threshold = 95th pct of straight LOO residuals)", pd.DataFrame(summ_b))
 
     fig, ax = plt.subplots(figsize=(3.45, 2.8), facecolor=SURFACE)
-    g = b[b.k == 24]
+    g = b[b.k == K_MAIN]
     st, co = g[g.split == "straight LOO"], g[g.split == "B cornering"]
     ax.scatter(st.rms_all, st.residual, s=12, color=BLUE, marker="o", label="straight (LOO)", linewidths=0)
     ax.scatter(co.rms_all, co.residual, s=16, color=ORANGE, marker="^", label="cornering (split B)", linewidths=0)
-    ax.axhline(thr[24], color=INK2, lw=1, ls="--")
-    ax.text(ax.get_xlim()[1], thr[24], " 95th pct", va="bottom", ha="right", fontsize=6.5, color=INK2)
+    ax.axhline(thr[K_MAIN], color=INK2, lw=1, ls="--")
+    ax.text(ax.get_xlim()[1], thr[K_MAIN], " 95th pct", va="bottom", ha="right", fontsize=6.5, color=INK2)
     ax.set_xlabel("True RMS error in Cp", fontsize=7, color=INK2)
     ax.set_ylabel("Sensor residual", fontsize=7, color=INK2)
-    ax.set_title("Unsupported-input flag, 24 sensors", fontsize=7.5, loc="left", color=INK)
+    ax.set_title(f"Unsupported-input flag, {K_MAIN} sensors", fontsize=7.5, loc="left", color=INK)
     ax.legend(fontsize=6.5, frameon=False, loc="upper left")
     style(ax)
     save(fig, 2)
@@ -310,7 +312,7 @@ def timed_mem(fn, *args):
     return out, dt, peak
 
 
-def split_b_rms(U, mean, coords, X, corner, k=24):
+def split_b_rms(U, mean, coords, X, corner, k=K_MAIN):
     s = greedy(U, k, coords, MIN_DIST)
     return s, float(np.mean([rms(rebuild(U, mean, s, X[:, j])[0], X[:, j]) for j in corner]))
 
@@ -342,7 +344,7 @@ def part4(D):
         Xd = X.astype(dtype)
         t0 = time.perf_counter()
         mean_d, U_d, r_d = pod(Xd[:, D.straight], VARIANCE)
-        s_d = greedy(U_d, 24, coords.astype(dtype), MIN_DIST)
+        s_d = greedy(U_d, K_MAIN, coords.astype(dtype), MIN_DIST)
         recon = [rebuild(U_d, mean_d, s_d, Xd[:, j])[0] for j in D.corner]
         dt = time.perf_counter() - t0
         b[dtype.__name__] = dict(sel=s_d, modes=r_d, nbytes=Xd.nbytes, time=dt,
@@ -359,8 +361,8 @@ def part4(D):
     valid = s_s > 1e-10 * s_s[0]
     print(f"   relative singular-value error: max {np.nanmax(rel[valid]):.2e} over the {valid.sum()} non-null indices "
           f"(index {len(s_s)} is the null direction of the centred matrix)")
-    show("4b  float32 vs float64, split B, k = 24 "
-         f"(sensor overlap {overlap} of 24)", df[df.section == "4b"][["dtype", "modes", "mean_rms_k24", "X_nbytes", "time_s"]])
+    show(f"4b  float32 vs float64, split B, k = {K_MAIN} "
+         f"(sensor overlap {overlap} of {K_MAIN})", df[df.section == "4b"][["dtype", "modes", "mean_rms_k24", "X_nbytes", "time_s"]])
 
     fig, ax = plt.subplots(figsize=(3.45, 2.8), facecolor=SURFACE)
     idx = np.arange(1, len(s_s) + 1)
@@ -387,7 +389,7 @@ def part8(D):
         for seed in range(3):
             cand = np.arange(n) if size == n else np.sort(np.random.default_rng(seed).choice(n, size, replace=False))
             t0 = time.perf_counter()
-            sl = greedy(U[cand], 24, coords[cand], MIN_DIST)
+            sl = greedy(U[cand], K_MAIN, coords[cand], MIN_DIST)
             dt = time.perf_counter() - t0
             s = list(cand[sl])
             rows.append(dict(section="8 greedy", candidates=size, seed=seed, modes=r, greedy_time_s=dt,
@@ -412,7 +414,7 @@ def part8(D):
          .agg(mean_rms_k24=("mean_rms_k24", "mean"), rms_sd=("mean_rms_k24", "std"), greedy_time_s=("greedy_time_s", "mean"),
               min_spacing_mm=("min_spacing_mm", "mean")).reset_index())
     g = g.merge(pt[["candidates", "pod_time_s", "gram_flops"]], on="candidates")
-    show(f"8  input resolution, split B, k = 24, r = {r} (3 seeds; POD time = best of 3 on {m} training cases)", g)
+    show(f"8  input resolution, split B, k = {K_MAIN}, r = {r} (3 seeds; POD time = best of 3 on {m} training cases)", g)
     print(f"   log-log slope of POD (Gram) time against point count: {slope:.2f} (expected about 1)")
 
     fig, ax = plt.subplots(figsize=(3.45, 2.8), facecolor=SURFACE)
@@ -421,7 +423,7 @@ def part8(D):
     ax2.plot(g.candidates, g.greedy_time_s, color=ORANGE, marker="s", ms=3.5, lw=1.5, label="greedy time (right)")
     ax.set_xscale("log")
     ax.set_xlabel("Greedy candidate points", fontsize=7, color=INK2)
-    ax.set_ylabel("Mean RMS error in Cp, k = 24", fontsize=7, color=BLUE)
+    ax.set_ylabel(f"Mean RMS error in Cp, k = {K_MAIN}", fontsize=7, color=BLUE)
     ax2.set_ylabel("Greedy wall time [s]", fontsize=7, color=ORANGE)
     ax2.tick_params(labelsize=7, colors=INK2)
     for side in ("top",):

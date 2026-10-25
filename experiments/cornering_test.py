@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import qr
 
-SENSORS = (10, 24)
+SENSORS = (10, int(os.environ.get("SENSORS_K", 24)))  # SENSORS_K sets the main count (one DPMS box)
 METHODS = ("greedy", "greedy_md", "qr", "random")
 N_RANDOM = 20
 

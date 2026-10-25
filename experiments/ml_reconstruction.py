@@ -46,7 +46,8 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cornering_test import corner_mask, greedy, pod  # noqa: E402
 
-SENSORS = (10, 24)
+K_MAIN = int(os.environ.get("SENSORS_K", 24))  # SENSORS_K: usable channels
+SENSORS = (10, K_MAIN)
 VARIANCE = 0.90
 MIN_DIST = 0.05  # m
 MODELS = ("baseline", "lstsq", "linreg", "mlp")
@@ -111,7 +112,7 @@ def plot_bars(summary, out):
     ink, ink2, grid, surface = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
     colours = {"a_loo": "#2a78d6", "b_straight_to_corner": "#eb6834"}
     labels = {"a_loo": "(a) leave-one-out", "b_straight_to_corner": "(b) straight → cornering"}
-    d = summary[summary.k == 24]
+    d = summary[summary.k == K_MAIN]
     fig, ax = plt.subplots(figsize=(3.45, 2.8), facecolor=surface)
     ax.set_facecolor(surface)
     x = np.arange(len(MODELS))
@@ -129,7 +130,7 @@ def plot_bars(summary, out):
         ax.spines[side].set_visible(False)
     ax.spines["bottom"].set_color("#c9c8c3")
     ax.legend(fontsize=6.5, frameon=False, loc="upper right")
-    ax.set_title("24 sensors, NN-aligned ensemble, y ≤ 0", fontsize=7.5, color=ink, loc="left")
+    ax.set_title(f"{K_MAIN} sensors, NN-aligned ensemble, y ≤ 0", fontsize=7.5, color=ink, loc="left")
     fig.tight_layout()
     fig.savefig(out, dpi=300, facecolor=surface)
     plt.close(fig)
@@ -153,7 +154,7 @@ def plot_loss(model, out):
         ax.grid(color="#e4e3df", linewidth=0.6)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
-    ax1.set_title("MLP (20,), test (b), 24 sensors", fontsize=7.5, loc="left")
+    ax1.set_title(f"MLP (20,), test (b), {K_MAIN} sensors", fontsize=7.5, loc="left")
     fig.tight_layout()
     fig.savefig(out, dpi=300, facecolor=surface)
     plt.close(fig)
@@ -191,7 +192,7 @@ def main():
         for row in out:
             row["test"] = "b_straight_to_corner"
             (rows if row["model"] in MODELS else sens_rows).append(row)
-        plot_loss(fitted[("mlp", 24)], os.path.join(a.outdir, "ml_loss_curve.png"))
+        plot_loss(fitted[("mlp", K_MAIN)], os.path.join(a.outdir, "ml_loss_curve.png"))
     if "a" in a.tests:
         for j in range(M):
             out, _, _ = run_split(X, coords, np.delete(np.arange(M), j), np.array([j]), SENSORS)
