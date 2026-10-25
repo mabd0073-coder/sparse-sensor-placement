@@ -1,0 +1,18 @@
+Ensemble data/side_diffuser_ensemble_dedup.npz: 146503 points x 100 cases
+Case-to-case spread: largest at any point 0.2702; median per-point s.d. 0.0551
+
+Leave-one-out, 10 sensors, 90% variance target
+  POD reconstruction RMS: mean 0.00359  s.d. 0.00192  min 0.00072  max 0.00942
+  mean-field baseline RMS: mean 0.04586  s.d. 0.03149  max 0.13191
+  improvement factor (baseline / POD): 12.8
+  modes kept per round: 1 mode(s) in 100 rounds
+  per-column LOO RMS vs data/loo_results.csv: max abs difference 9.89e-17
+
+Params rows selected with --rows "sweep == 50.28": 100
+  all from sweep 50.28; only FRH/RRH vary
+  folder order matches data/loo_results.csv for all 100 columns
+
+Correlation of each case's mean Cp with FRH + RRH: -0.231; with pitch RRH - FRH: 0.184
+
+Extrapolation: train on 64 cases with FRH and RRH <= 50 mm, test on the other 36 (1 mode(s) kept)
+  POD RMS mean 0.00442 (max 0.00873); mean-field baseline RMS mean 0.04541

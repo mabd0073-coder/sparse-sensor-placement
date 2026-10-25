@@ -1,0 +1,19 @@
+                                              dedup (146,503 pts)                      highres (144,472 pts)
+modes kept per LOO round                  1 mode(s) in 100 rounds 15 mode(s) in 23 rounds, 16 mode(s) in 77 rounds
+case spread: largest at any point                          0.2702                                     3.9403
+case spread: median per-point s.d.                         0.0551                                     0.3446
+LOO POD RMS mean (10 sensors)                             0.00359                                    0.47024
+LOO POD RMS max                                           0.00942                                    0.70124
+LOO mean-field baseline RMS mean                          0.04586                                    0.50822
+improvement factor                                           12.8                                        1.1
+corr(mean Cp, FRH+RRH)                                     -0.231                                     -0.911
+extrapolation POD RMS mean                                0.00442                                    0.67852
+
+Notes (2026-10-25). The two files do not hold the same fields, so the gap is not interpolation noise:
+- Cp range over all points and cases: dedup -0.710..-0.436, highres -5.052..1.104.
+- Dedup case 0 varies only from -0.5966 to -0.5845 over the whole surface (a nearly flat field).
+- At nearest matching points the mean fields correlate at -0.09; per-case mean Cp correlates 0.08 between files.
+- Likely cause: data/all_points.csv (the dedup target grid) is in mm, while cluster/load_sweep_single_idw.py
+  applies no mm->m conversion to the CFD points. If those were in metres, every target point gets the same
+  few neighbours and a near-constant field. Highres (master loader, converts to metres) shows the expected
+  ride-height trend (corr -0.91), so treat highres as the trustworthy ensemble until dedup is rebuilt.

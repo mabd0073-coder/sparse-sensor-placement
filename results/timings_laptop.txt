@@ -1,0 +1,7 @@
+CPU: 13th Gen Intel(R) Core(TM) i7-13650HX (20 logical cores)
+Python 3.12.10, NumPy 2.5.3, Windows-11-10.0.26300-SP0
+Ensemble: data/side_diffuser_ensemble_highres.npz, 144472 points x 100 cases
+
+function                                 run  1 [s] run  2 [s] run  3 [s]   best [s]   mean [s]
+compute_pod (r = 16 modes)                    0.990      1.104      2.072      0.990      1.389
+greedy_sensor_placement (40 sensors)          1.376      1.383      1.349      1.349      1.369

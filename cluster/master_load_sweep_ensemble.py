@@ -81,8 +81,8 @@ def prepare_full_car_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, boo
     coords = df[["x", "y", "z"]].to_numpy()
     cp = df["CpS"].to_numpy()
 
-    # If minimum Y is close to or above 0, it's a left-hand (half-car) mesh
-    is_half_car = df["y"].min() > -0.05
+    # Data on only one side of y = 0 (either side) is a half-car mesh
+    is_half_car = (df["y"].max() < 0.05) or (df["y"].min() > -0.05)
 
     if is_half_car:
         coords_rh = coords.copy()

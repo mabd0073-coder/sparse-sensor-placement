@@ -1,0 +1,23 @@
+Ensemble data/side_diffuser_ensemble_highres.npz: 144472 points x 100 cases; 10 sensors
+  10/100 folds done
+  20/100 folds done
+  30/100 folds done
+  40/100 folds done
+  50/100 folds done
+  60/100 folds done
+  70/100 folds done
+  80/100 folds done
+  90/100 folds done
+  100/100 folds done
+
+Modes kept per fold: {16: 77, 15: 23}
+                 method  loo_rms_mean  loo_rms_sd  loo_rms_max  random_seed_sd  min_spacing_m
+                 greedy       0.47024     0.11061      0.70124             NaN        0.00174
+greedy, min_dist 0.02 m       0.47342     0.10316      0.69760             NaN        0.02341
+greedy, min_dist 0.05 m       0.44877     0.11125      0.70422             NaN        0.05204
+ greedy, min_dist 0.1 m       0.44241     0.11204      0.75381             NaN        0.10060
+            QR pivoting       0.47024     0.11061      0.70124             NaN        0.00174
+                 random       0.48587     0.22429      4.18720         0.06768        0.06121
+    mean-field baseline       0.50822     0.10950      0.74320             NaN            NaN
+
+Saved results/placement_comparison_highres.csv, results/placement_comparison_highres_folds.csv and results/placement_comparison_highres.png

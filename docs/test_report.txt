@@ -1,0 +1,30 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\mu_ab\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\dev\sparse-sensor-placement
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 20 items
+
+tests/test_core.py::test_exact_recovery_of_low_rank_field[1] PASSED      [  5%]
+tests/test_core.py::test_exact_recovery_of_low_rank_field[3] PASSED      [ 10%]
+tests/test_core.py::test_exact_recovery_of_low_rank_field[8] PASSED      [ 15%]
+tests/test_core.py::test_greedy_returns_unique_indices PASSED            [ 20%]
+tests/test_core.py::test_greedy_rejects_more_sensors_than_points PASSED  [ 25%]
+tests/test_core.py::test_vectorised_greedy_matches_original_loop PASSED  [ 30%]
+tests/test_core.py::test_min_dist_keeps_sensors_apart PASSED             [ 35%]
+tests/test_core.py::test_min_dist_zero_reproduces_unconstrained_picks PASSED [ 40%]
+tests/test_core.py::test_min_dist_too_large_raises PASSED                [ 45%]
+tests/test_core.py::test_reconstruction_error_falls_with_more_sensors_under_noise PASSED [ 50%]
+tests/test_core.py::test_nan_input_raises_cfd_data_error[compute_pod] PASSED [ 55%]
+tests/test_core.py::test_nan_input_raises_cfd_data_error[greedy] PASSED  [ 60%]
+tests/test_core.py::test_nan_input_raises_cfd_data_error[reconstruct] PASSED [ 65%]
+tests/test_load_rrf_sweeps.py::test_builds_left_side_train_and_test_ensembles PASSED [ 70%]
+tests/test_loaders.py::test_one_sided_data_is_mirrored[left-cluster.load_sweep_ensemble] PASSED [ 75%]
+tests/test_loaders.py::test_one_sided_data_is_mirrored[left-cluster.master_load_sweep_ensemble] PASSED [ 80%]
+tests/test_loaders.py::test_one_sided_data_is_mirrored[right-cluster.load_sweep_ensemble] PASSED [ 85%]
+tests/test_loaders.py::test_one_sided_data_is_mirrored[right-cluster.master_load_sweep_ensemble] PASSED [ 90%]
+tests/test_loaders.py::test_full_car_data_is_not_mirrored[cluster.load_sweep_ensemble] PASSED [ 95%]
+tests/test_loaders.py::test_full_car_data_is_not_mirrored[cluster.master_load_sweep_ensemble] PASSED [100%]
+
+============================= 20 passed in 1.02s ==============================
